@@ -1,0 +1,136 @@
+@import "tailwindcss";
+
+@theme {
+  /* ============================================
+     Identidad visual oficial de Kivo
+     ============================================ */
+
+  /* Marca */
+  --color-primary: #03aefe;
+  --color-primary-dark: #1b5bb6;
+  --color-cerulean: #44a3da;
+  --color-sky: #5fdaf8;
+
+  --color-accent: #fe9806;
+  --color-accent-dark: #e08600;
+
+  --color-purple: #9003fd;
+
+  /* Texto */
+  --color-ink: #000000;
+  --color-ink-soft: #17181c;
+  --color-body: #4c5566;
+  --color-muted: #6b7484;
+  --color-placeholder: #9aa2b1;
+
+  /* Superficies del backoffice */
+  --color-page: #f5f7fa;
+  --color-surface: #ffffff;
+  --color-surface-soft: #f7fafc;
+  --color-surface-blue: #e9f7ff;
+
+  /* Navegación */
+  --color-sidebar: #ffffff;
+  --color-sidebar-active: #e9f7ff;
+  --color-sidebar-hover: #f4f8fb;
+
+  /* Bordes */
+  --color-border: #d9dfe8;
+  --color-border-soft: #e8edf3;
+  --color-border-strong: #bcc5d1;
+
+  /* Estados semánticos */
+  --color-success: #0bbf7c;
+  --color-success-bg: #eafaf4;
+
+  --color-error: #e02424;
+  --color-error-bg: #fff0f0;
+
+  --color-warning: #a56800;
+  --color-warning-bg: #fff9ed;
+  --color-warning-border: #f0c36b;
+
+  --color-info: #1b5bb6;
+  --color-info-bg: #e9f7ff;
+
+  /* Sombras */
+  --shadow-card:
+    0 1px 2px rgb(15 23 42 / 0.04),
+    0 4px 12px rgb(15 23 42 / 0.06);
+
+  --shadow-dropdown:
+    0 8px 24px rgb(15 23 42 / 0.12);
+}
+
+@theme inline {
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  min-height: 100%;
+  background: var(--color-page);
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family:
+    var(--font-manrope),
+    ui-sans-serif,
+    system-ui,
+    sans-serif;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+::selection {
+  background: var(--color-sky);
+  color: var(--color-ink);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-placeholder);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+  box-shadow: 0 0 0 1000px #ffffff inset;
+  -webkit-text-fill-color: var(--color-ink);
+  caret-color: var(--color-ink);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+:focus-visible {
+  outline: 3px solid rgb(3 174 254 / 0.28);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
