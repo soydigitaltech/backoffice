@@ -1,0 +1,43 @@
+import type { User } from "@/types/user";
+
+export const INITIAL_USERS: User[] = [
+  {
+    id: "usr-001",
+    firstName: "Hugo",
+    lastName: "Soliz",
+    fullName: "Hugo Soliz",
+    email: "hugo@soydigital.tech",
+    phone: "+591 70000001",
+    role: "SUPER_ADMIN",
+    status: "ACTIVE",
+    lastAccess: "2026-08-02T18:42:00-04:00",
+    createdAt: "2026-07-21T09:00:00-04:00",
+    updatedAt: "2026-08-02T18:42:00-04:00",
+  },
+  {
+    id: "usr-002",
+    firstName: "Carlos",
+    lastName: "Mendoza",
+    fullName: "Carlos Mendoza",
+    email: "carlos.mendoza@kivo.bo",
+    phone: "+591 70000002",
+    role: "ASSIGNED_ADVISOR",
+    status: "ACTIVE",
+    lastAccess: "2026-08-01T19:04:00-04:00",
+    createdAt: "2026-07-25T08:30:00-04:00",
+    updatedAt: "2026-08-01T19:04:00-04:00",
+  },
+  {
+    id: "usr-003",
+    firstName: "Luis",
+    lastName: "Paredes",
+    fullName: "Luis Paredes",
+    email: "luis.paredes@kivo.bo",
+    phone: "+591 70000003",
+    role: "ASSIGNED_ADVISOR",
+    status: "PENDING",
+    lastAccess: null,
+    createdAt: "2026-08-01T14:10:00-04:00",
+    updatedAt: "2026-08-01T14:10:00-04:00",
+  },
+];
