@@ -346,11 +346,17 @@ export default function UserDetailModal({
                     className="h-12 w-full rounded-xl border border-admin-border bg-white px-4 text-sm text-admin-text outline-none transition-colors focus:border-primary"
                   >
                     <option value="SUPER_ADMIN">
-                      Super Administrador
+                      Administrador
                     </option>
 
-                    <option value="ASSIGNED_ADVISOR">
-                      Asesor Asignado
+                    <option value="GESTOR_PRESTAMOS">
+                      Gestor de préstamos
+                    </option>
+                    <option value="JEFE_CARTERA">
+                      Jefe de cartera
+                    </option>
+                    <option value="ASESOR_PRESTAMOS">
+                      Asesor de préstamos
                     </option>
                   </select>
                 </div>

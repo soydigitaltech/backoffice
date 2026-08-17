@@ -132,8 +132,10 @@ export default function UsersView() {
             className="h-11 rounded-xl border border-admin-border bg-white px-4 text-sm text-admin-text outline-none transition-colors hover:border-admin-border-strong focus:border-primary"
           >
             <option value="">Todos los roles</option>
-            <option value="SUPER_ADMIN">Super Administrador</option>
-            <option value="ASSIGNED_ADVISOR">Asesor Asignado</option>
+            <option value="SUPER_ADMIN">Administrador</option>
+            <option value="GESTOR_PRESTAMOS">Gestor de préstamos</option>
+            <option value="ASESOR_PRESTAMOS">Asesor de préstamos</option>
+            <option value="JEFE_CARTERA">Jefe de cartera</option>
           </select>
 
           <select

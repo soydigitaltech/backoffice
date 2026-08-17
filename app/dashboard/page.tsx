@@ -6,33 +6,29 @@ import {
   AlertTriangle,
   ArrowRight,
   BriefcaseBusiness,
-  CalendarDays,
   Check,
   ChevronDown,
   Clock3,
   MapPin,
-  Radio,
-  UserRound,
   Columns3,
   GripVertical,
-  LayoutList,} from "lucide-react";
+  LayoutList,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import ApplicationStatusBadge from "@/components/applications/ApplicationStatusBadge";
 import OnboardingTimeline from "@/components/applications/OnboardingTimeline";
 import BackofficeLayout from "@/components/layout/BackofficeLayout";
 import NotificationSummaryModal from "@/components/notifications/NotificationSummaryModal";
+import LoanAdvisorDashboard from "@/components/advisor/LoanAdvisorDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { INITIAL_APPLICATIONS } from "@/mocks/applications";
 import type { Application } from "@/types/application";
 
-type DashboardPeriod =
-  | "TODAY"
-  | "YESTERDAY"
-  | "WEEK"
-  | "MONTH";
 
 type DashboardView = "LIST" | "FLOW";
+type DashboardGroup = "FOLLOW_UP" | "PRE_APPROVED";
+type FollowUpFilter = "ALL" | "IN_PROGRESS" | "COMPLETED";
 
 type GlobalApplicationStatus =
   | "NEW"
@@ -47,6 +43,7 @@ type BoardState = Record<
 
 const BOARD_COLUMNS: {
   id: GlobalApplicationStatus;
+  group: DashboardGroup;
   label: string;
   description: string;
   headerClass: string;
@@ -54,6 +51,7 @@ const BOARD_COLUMNS: {
 }[] = [
   {
     id: "NEW",
+    group: "FOLLOW_UP",
     label: "Nuevas",
     description: "Ingresaron al tablero",
     headerClass: "bg-surface-blue",
@@ -61,6 +59,7 @@ const BOARD_COLUMNS: {
   },
   {
     id: "REVIEW",
+    group: "FOLLOW_UP",
     label: "En revisión",
     description: "Gestión de Clientes",
     headerClass: "bg-[#FFF7EB]",
@@ -68,28 +67,20 @@ const BOARD_COLUMNS: {
   },
   {
     id: "APPROVED",
-    label: "Aprobadas",
-    description: "Listas para asignar",
+    group: "PRE_APPROVED",
+    label: "Pre aprobados",
+    description: "Listos para continuar la gestión",
     headerClass: "bg-[#F0FBF7]",
     countClass: "bg-[#16855E] text-white",
   },
   {
     id: "ASSIGNED",
+    group: "PRE_APPROVED",
     label: "Asignadas",
     description: "Con asesor responsable",
     headerClass: "bg-[#F8F1FF]",
     countClass: "bg-[#9003FD] text-white",
   },
-];
-
-const DASHBOARD_PERIODS: {
-  value: DashboardPeriod;
-  label: string;
-}[] = [
-  { value: "TODAY", label: "Hoy" },
-  { value: "YESTERDAY", label: "Ayer" },
-  { value: "WEEK", label: "Esta semana" },
-  { value: "MONTH", label: "Este mes" },
 ];
 
 function formatCurrency(value: number) {
@@ -103,38 +94,6 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function formatRelativeTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return "Sin actividad";
-  }
-
-  const now = new Date();
-
-  const differenceInMinutes = Math.max(
-    0,
-    Math.floor((now.getTime() - date.getTime()) / 60000),
-  );
-
-  if (differenceInMinutes < 1) {
-    return "Ahora";
-  }
-
-  if (differenceInMinutes < 60) {
-    return `Hace ${differenceInMinutes} min`;
-  }
-
-  const hours = Math.floor(differenceInMinutes / 60);
-
-  if (hours < 24) {
-    return `Hace ${hours} h`;
-  }
-
-  const days = Math.floor(hours / 24);
-
-  return `Hace ${days} día${days === 1 ? "" : "s"}`;
-}
 
 function createMockApplication(
   base: Application,
@@ -219,33 +178,64 @@ function createMockApplication(
   };
 }
 
-function ApplicationAccordionCard({
-  application,
-  defaultOpen = false,
-}: {
-  application: Application;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
+const ONBOARDING_TOTAL_STEPS = 6;
 
-  const [inReview, setInReview] = useState(false);
-
-  const completedSteps = application.onboarding.steps.filter(
+function getCompletedSteps(application: Application) {
+  return application.onboarding.steps.filter(
     (step) => step.status === "COMPLETED",
   ).length;
+}
+
+function hasCompletedOnboarding(application: Application) {
+  return (
+    getCompletedSteps(application) >= ONBOARDING_TOTAL_STEPS ||
+    application.onboarding.progress >= 100
+  );
+}
+
+function ApplicationAccordionCard({
+  application,
+  open,
+  onToggle,
+}: {
+  application: Application;
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const completedSteps = getCompletedSteps(application);
+  const onboardingCompleted = hasCompletedOnboarding(application);
 
   const initials = `${application.applicant.firstName.charAt(
     0,
   )}${application.applicant.lastName.charAt(0)}`.toUpperCase();
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-admin-border bg-white transition-all hover:border-primary/25">
+    <article
+      className={[
+        "overflow-hidden rounded-2xl border bg-white transition-all duration-200 ease-out",
+        open
+          ? "border-[#03AEFE]/45 shadow-[0_6px_24px_rgba(3,174,254,0.10)]"
+          : "border-admin-border hover:border-[#03AEFE]/40 hover:shadow-[0_4px_18px_rgba(3,174,254,0.06)]",
+      ].join(" ")}
+    >
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center gap-4 p-5 text-left sm:p-6"
+        onClick={onToggle}
+        className={[
+          "group flex w-full cursor-pointer items-center gap-4 p-5 text-left transition-all duration-200 ease-out sm:p-6",
+          open
+            ? "bg-[#DFF4FF]"
+            : "hover:bg-[#EAF7FF]",
+        ].join(" ")}
       >
-        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-surface-blue text-sm font-bold text-primary-dark">
+        <div
+          className={[
+            "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all duration-200 ease-out",
+            open
+              ? "bg-[#03AEFE] text-white shadow-sm"
+              : "bg-surface-blue text-primary-dark group-hover:bg-[#03AEFE] group-hover:text-white",
+          ].join(" ")}
+        >
           {initials}
         </div>
 
@@ -259,6 +249,13 @@ function ApplicationAccordionCard({
               status={application.status}
               compact
             />
+
+            {onboardingCompleted ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF8F2] px-2.5 py-1 text-[10px] font-bold text-[#16855E]">
+                <Check aria-hidden="true" size={12} />
+                Onboarding completado
+              </span>
+            ) : null}
           </div>
 
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-admin-text-soft">
@@ -292,16 +289,31 @@ function ApplicationAccordionCard({
             aria-hidden="true"
             size={20}
             className={[
-              "text-admin-text-muted transition-transform duration-200",
-              open ? "rotate-180" : "",
+              "transition-all duration-200 ease-out",
+              open
+                ? "rotate-180 text-[#1B5BB6]"
+                : "text-admin-text-muted group-hover:translate-y-0.5 group-hover:text-[#1B5BB6]",
             ].join(" ")}
           />
         </div>
       </button>
 
-      {open ? (
-        <div className="border-t border-admin-border">
-          <div className="p-5 sm:p-6">
+      <div
+        className={[
+          "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+          open
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0",
+        ].join(" ")}
+      >
+        <div className="overflow-hidden">
+          <div className="border-t border-admin-border">
+            <div
+              className={[
+                "p-5 transition-transform duration-300 ease-out sm:p-6",
+                open ? "translate-y-0" : "-translate-y-1.5",
+              ].join(" ")}
+            >
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <div className="rounded-xl bg-surface-blue/35 px-4 py-3.5">
                 <p className="text-[11px] font-medium text-admin-text-soft">
@@ -357,8 +369,8 @@ function ApplicationAccordionCard({
 
                 <div className="mt-1 flex items-center justify-between gap-3">
                   <p className="text-sm font-semibold text-admin-text">
-                    {completedSteps}/
-                    {application.onboarding.steps.length} etapas
+                    {Math.min(completedSteps, ONBOARDING_TOTAL_STEPS)}/
+                    {ONBOARDING_TOTAL_STEPS} pasos
                   </p>
 
                   <span className="text-sm font-bold text-[#9003FD]">
@@ -459,38 +471,82 @@ function ApplicationAccordionCard({
                 />
               </Link>
             </div>
+            </div>
           </div>
         </div>
-      ) : null}
+      </div>
     </article>
   );
 }
 
 function ApplicationsFlowBoard({
   applications,
+  group,
+  followUpFilter,
 }: {
   applications: Application[];
+  group: DashboardGroup;
+  followUpFilter: FollowUpFilter;
 }) {
   const router = useRouter();
 
   const [draggedApplicationId, setDraggedApplicationId] =
     useState<string | null>(null);
 
+  const filteredApplications = applications.filter(
+    (application) => {
+      if (group !== "FOLLOW_UP") {
+        return true;
+      }
+
+      if (followUpFilter === "COMPLETED") {
+        return hasCompletedOnboarding(application);
+      }
+
+      if (followUpFilter === "IN_PROGRESS") {
+        return !hasCompletedOnboarding(application);
+      }
+
+      return true;
+    },
+  );
+
   const [board, setBoard] = useState<BoardState>(() => {
-    const ids = applications.map(
+    const ids = filteredApplications.map(
       (application) => application.id,
     );
 
+    if (
+      group === "FOLLOW_UP" &&
+      followUpFilter === "COMPLETED"
+    ) {
+      return {
+        NEW: ids,
+        REVIEW: [],
+        APPROVED: [],
+        ASSIGNED: [],
+      };
+    }
+
+    if (group === "PRE_APPROVED") {
+      return {
+        NEW: [],
+        REVIEW: [],
+        APPROVED: ids.slice(0, Math.ceil(ids.length / 2)),
+        ASSIGNED: ids.slice(Math.ceil(ids.length / 2)),
+      };
+    }
+
     return {
-      NEW: ids.slice(0, 2),
-      REVIEW: ids.slice(2, 4),
-      APPROVED: ids.slice(4, 5),
-      ASSIGNED: ids.slice(5, 6),
+      NEW: ids.filter((_, index) => index % 2 === 0),
+      REVIEW: ids.filter((_, index) => index % 2 !== 0),
+      APPROVED: [],
+      ASSIGNED: [],
     };
   });
 
   const getApplication = (id: string) =>
-    applications.find(
+    filteredApplications.find(
       (application) => application.id === id,
     );
 
@@ -523,206 +579,351 @@ function ApplicationsFlowBoard({
     });
   };
 
+  const visibleColumns =
+    group === "FOLLOW_UP"
+      ? [
+          {
+            id: "NEW" as const,
+            label:
+              followUpFilter === "COMPLETED"
+                ? "Onboarding completado"
+                : "En seguimiento",
+            description:
+              followUpFilter === "COMPLETED"
+                ? "Clientes que completaron los 6 pasos"
+                : "Clientes avanzando en el onboarding",
+            headerClass: "bg-surface-blue",
+            countClass:
+              "bg-[#03AEFE] text-white",
+          },
+          {
+            id: "REVIEW" as const,
+            label:
+              followUpFilter === "COMPLETED"
+                ? "Listos para evaluación"
+                : "Requieren atención",
+            description:
+              followUpFilter === "COMPLETED"
+                ? "Solicitudes listas para continuar"
+                : "Casos que necesitan seguimiento",
+            headerClass: "bg-[#FFF7EB]",
+            countClass:
+              "bg-[#FE9806] text-white",
+          },
+        ]
+      : BOARD_COLUMNS.filter(
+          (column) => column.group === group,
+        );
+
   return (
     <section className="overflow-x-auto pb-3">
-      <div className="grid min-w-[1180px] grid-cols-4 gap-4">
-        {BOARD_COLUMNS.map((column) => (
-          <div
-            key={column.id}
-            onDragOver={(event) => {
-              event.preventDefault();
-              event.dataTransfer.dropEffect = "move";
-            }}
-            onDrop={(event) => {
-              event.preventDefault();
-
-              const applicationId =
-                event.dataTransfer.getData(
-                  "text/application-id",
-                );
-
-              if (!applicationId) {
-                return;
-              }
-
-              moveApplication(
-                applicationId,
-                column.id,
+      <div className="grid min-w-[900px] grid-cols-2 gap-4">
+        {visibleColumns.map((column) => {
+          const columnApplications =
+            board[column.id]
+              .map((id) => getApplication(id))
+              .filter(
+                (
+                  application,
+                ): application is Application =>
+                  Boolean(application),
               );
 
-              setDraggedApplicationId(null);
-            }}
-            className="min-h-[560px] rounded-2xl border border-admin-border bg-admin-page/40 p-3"
-          >
+          return (
             <div
-              className={[
-                "rounded-2xl p-4",
-                column.headerClass,
-              ].join(" ")}
+              key={column.id}
+              onDragOver={(event) => {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = "move";
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+
+                const applicationId =
+                  event.dataTransfer.getData(
+                    "text/application-id",
+                  );
+
+                if (!applicationId) {
+                  return;
+                }
+
+                moveApplication(
+                  applicationId,
+                  column.id,
+                );
+
+                setDraggedApplicationId(null);
+              }}
+              className="min-h-[560px] rounded-2xl border border-admin-border bg-admin-page/40 p-3"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm font-bold text-admin-text">
-                    {column.label}
-                  </p>
+              <div
+                className={[
+                  "rounded-2xl p-4",
+                  column.headerClass,
+                ].join(" ")}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-admin-text">
+                      {column.label}
+                    </p>
 
-                  <p className="mt-1 text-[11px] text-admin-text-soft">
-                    {column.description}
-                  </p>
+                    <p className="mt-1 text-[11px] text-admin-text-soft">
+                      {column.description}
+                    </p>
+                  </div>
+
+                  <span
+                    className={[
+                      "inline-flex h-7 min-w-7 items-center justify-center rounded-lg px-2 text-xs font-bold",
+                      column.countClass,
+                    ].join(" ")}
+                  >
+                    {columnApplications.length}
+                  </span>
                 </div>
-
-                <span
-                  className={[
-                    "inline-flex h-7 min-w-7 items-center justify-center rounded-lg px-2 text-xs font-bold",
-                    column.countClass,
-                  ].join(" ")}
-                >
-                  {board[column.id].length}
-                </span>
               </div>
-            </div>
 
-            <div className="mt-3 space-y-3">
-              {board[column.id].map(
-                (applicationId) => {
-                  const application =
-                    getApplication(applicationId);
+              <div className="mt-3 space-y-3">
+                {columnApplications.map(
+                  (application) => {
+                    const initials =
+                      `${application.applicant.firstName.charAt(
+                        0,
+                      )}${application.applicant.lastName.charAt(
+                        0,
+                      )}`.toUpperCase();
 
-                  if (!application) {
-                    return null;
-                  }
+                    const completedSteps =
+                      getCompletedSteps(application);
 
-                  const initials =
-                    `${application.applicant.firstName.charAt(
-                      0,
-                    )}${application.applicant.lastName.charAt(
-                      0,
-                    )}`.toUpperCase();
+                    return (
+                      <article
+                        key={application.id}
+                        draggable
+                        onDragStart={(event) => {
+                          setDraggedApplicationId(
+                            application.id,
+                          );
 
-                  return (
-                    <article
-                      key={application.id}
-                      draggable
-                      onDragStart={(event) => {
-                        setDraggedApplicationId(
-                          application.id,
-                        );
+                          event.dataTransfer.setData(
+                            "text/application-id",
+                            application.id,
+                          );
 
-                        event.dataTransfer.setData(
-                          "text/application-id",
-                          application.id,
-                        );
-
-                        event.dataTransfer.effectAllowed =
-                          "move";
-                      }}
-                      onDragEnd={() =>
-                        setDraggedApplicationId(null)
-                      }
-                      onClick={() => {
-                        if (
+                          event.dataTransfer.effectAllowed =
+                            "move";
+                        }}
+                        onDragEnd={() =>
+                          setDraggedApplicationId(null)
+                        }
+                        className={[
+                          "group overflow-hidden rounded-2xl border border-admin-border bg-white transition-all duration-200",
+                          "hover:border-[#03AEFE]/40 hover:shadow-[0_10px_30px_rgba(3,174,254,0.08)]",
                           draggedApplicationId ===
                           application.id
-                        ) {
-                          return;
-                        }
+                            ? "scale-[0.98] opacity-40"
+                            : "",
+                        ].join(" ")}
+                      >
+                        <div className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-blue text-xs font-bold text-primary-dark transition-colors group-hover:bg-[#03AEFE] group-hover:text-white">
+                              {initials}
+                            </div>
 
-                        router.push(
-                          `/solicitudes/${application.id}`,
-                        );
-                      }}
-                      className={[
-                        "group cursor-pointer rounded-2xl border border-admin-border bg-white p-4 transition-all",
-                        "hover:border-primary/30 hover:shadow-[0_10px_30px_rgba(3,174,254,0.08)]",
-                        draggedApplicationId ===
-                        application.id
-                          ? "opacity-40"
-                          : "",
-                      ].join(" ")}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-blue text-xs font-bold text-primary-dark">
-                          {initials}
-                        </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-bold text-admin-text">
+                                    {
+                                      application.applicant
+                                        .fullName
+                                    }
+                                  </p>
 
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-bold text-admin-text">
-                            {
-                              application.applicant
-                                .fullName
-                            }
-                          </p>
+                                  <p className="mt-1 text-[11px] text-admin-text-soft">
+                                    {application.code}
+                                  </p>
+                                </div>
 
-                          <p className="mt-1 text-[11px] text-admin-text-soft">
-                            {application.code}
-                          </p>
-                        </div>
+                                <GripVertical
+                                  aria-hidden="true"
+                                  size={17}
+                                  className="shrink-0 cursor-grab text-admin-text-muted active:cursor-grabbing"
+                                />
+                              </div>
 
-                        <GripVertical
-                          aria-hidden="true"
-                          size={17}
-                          className="shrink-0 cursor-grab text-admin-text-muted active:cursor-grabbing"
-                        />
-                      </div>
+                              <div className="mt-2">
+                                <ApplicationStatusBadge
+                                  status={application.status}
+                                  compact
+                                />
+                              </div>
+                            </div>
+                          </div>
 
-                      <div className="mt-4">
-                        <div className="flex items-center justify-between gap-3">
-                          <span className="text-[11px] font-medium text-admin-text-soft">
-                            {
-                              application.onboarding
-                                .currentStepLabel
-                            }
-                          </span>
-
-                          <span className="text-xs font-bold text-primary-dark">
-                            {
-                              application.onboarding
-                                .progress
-                            }
-                            %
-                          </span>
-                        </div>
-
-                        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-admin-border">
-                          <div
-                            className="h-full rounded-full bg-primary"
-                            style={{
-                              width: `${application.onboarding.progress}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mt-4 border-t border-admin-border pt-3">
-                        {column.id === "ASSIGNED" ? (
-                          <p className="text-xs text-admin-text-soft">
-                            Asesor:{" "}
-                            <span className="font-bold text-admin-text">
-                              {application.assignedAdvisorName ||
-                                "Asignado"}
+                          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-admin-text-soft">
+                            <span>
+                              CI{" "}
+                              {
+                                application.applicant
+                                  .identityNumber
+                              }
                             </span>
-                          </p>
-                        ) : (
-                          <p className="line-clamp-2 text-xs leading-5 text-admin-text-soft">
-                            {application.nextAction}
-                          </p>
-                        )}
-                      </div>
-                    </article>
-                  );
-                },
-              )}
 
-              {board[column.id].length === 0 ? (
-                <div className="flex min-h-[120px] items-center justify-center rounded-2xl border border-dashed border-admin-border bg-white/50 p-5 text-center">
-                  <p className="text-xs text-admin-text-muted">
-                    Arrastra una solicitud aquí
-                  </p>
-                </div>
-              ) : null}
+                            <span>•</span>
+
+                            <span className="inline-flex items-center gap-1">
+                              <MapPin
+                                aria-hidden="true"
+                                size={12}
+                              />
+                              {
+                                application.applicant
+                                  .city
+                              }
+                            </span>
+                          </div>
+
+                          <div className="mt-4 grid grid-cols-2 gap-2">
+                            <div className="rounded-xl bg-surface-blue/40 px-3 py-3">
+                              <p className="text-[10px] text-admin-text-soft">
+                                Monto solicitado
+                              </p>
+
+                              <p className="mt-1 text-sm font-bold text-admin-text">
+                                {formatCurrency(
+                                  application.loan
+                                    .requestedAmount,
+                                )}
+                              </p>
+                            </div>
+
+                            <div className="rounded-xl bg-[#F0FBF7] px-3 py-3">
+                              <p className="text-[10px] text-admin-text-soft">
+                                Ingreso mensual
+                              </p>
+
+                              <p className="mt-1 text-sm font-bold text-admin-text">
+                                {formatCurrency(
+                                  application.employment
+                                    .monthlyNetIncome,
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 rounded-xl bg-admin-surface-soft p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-[10px] font-medium text-admin-text-muted">
+                                  Etapa actual
+                                </p>
+
+                                <p className="mt-1 text-xs font-bold text-admin-text">
+                                  {
+                                    application.onboarding
+                                      .currentStepLabel
+                                  }
+                                </p>
+                              </div>
+
+                              <span className="text-sm font-bold text-primary-dark">
+                                {
+                                  application.onboarding
+                                    .progress
+                                }
+                                %
+                              </span>
+                            </div>
+
+                            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-admin-border">
+                              <div
+                                className="h-full rounded-full bg-[#03AEFE] transition-all duration-300"
+                                style={{
+                                  width: `${application.onboarding.progress}%`,
+                                }}
+                              />
+                            </div>
+
+                            <p className="mt-2 text-[10px] text-admin-text-muted">
+                              {Math.min(
+                                completedSteps,
+                                ONBOARDING_TOTAL_STEPS,
+                              )}
+                              /{ONBOARDING_TOTAL_STEPS} pasos
+                            </p>
+                          </div>
+
+                          <div className="mt-4 border-t border-admin-border pt-3">
+                            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-admin-text-muted">
+                              Próxima acción
+                            </p>
+
+                            <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-admin-text">
+                              {application.nextAction}
+                            </p>
+                          </div>
+
+                          {application.alerts.length > 0 ? (
+                            <div className="mt-3 flex items-start gap-2 rounded-xl bg-warning-bg px-3 py-2.5">
+                              <AlertTriangle
+                                aria-hidden="true"
+                                size={14}
+                                className="mt-0.5 shrink-0 text-warning"
+                              />
+
+                              <p className="line-clamp-2 text-[11px] leading-4 text-warning">
+                                {
+                                  application.alerts[0]
+                                }
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        <div className="border-t border-admin-border bg-admin-surface-soft p-3">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              router.push(
+                                `/solicitudes/${application.id}`,
+                              )
+                            }
+                            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-ink text-xs font-bold text-white transition-all hover:bg-primary-dark"
+                          >
+                            Abrir expediente
+
+                            <ArrowRight
+                              aria-hidden="true"
+                              size={14}
+                            />
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  },
+                )}
+
+                {columnApplications.length === 0 ? (
+                  <div className="flex min-h-[150px] items-center justify-center rounded-2xl border border-dashed border-admin-border bg-white/50 p-5 text-center">
+                    <div>
+                      <p className="text-xs font-semibold text-admin-text-soft">
+                        Sin solicitudes
+                      </p>
+
+                      <p className="mt-1 text-[11px] text-admin-text-muted">
+                        Arrastra una solicitud aquí
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -734,11 +935,25 @@ export default function DashboardPage() {
   const [loginSummaryOpen, setLoginSummaryOpen] =
     useState(false);
 
-  const [period, setPeriod] =
-    useState<DashboardPeriod>("TODAY");
-
   const [dashboardView, setDashboardView] =
     useState<DashboardView>("LIST");
+
+  const [dashboardGroup, setDashboardGroup] =
+    useState<DashboardGroup>("FOLLOW_UP");
+
+  const [followUpFilter, setFollowUpFilter] =
+    useState<FollowUpFilter>("ALL");
+
+  const [openApplicationId, setOpenApplicationId] =
+    useState<string | null>(null);
+
+  const toggleApplication = (applicationId: string) => {
+    setOpenApplicationId((current) =>
+      current === applicationId
+        ? null
+        : applicationId,
+    );
+  };
 
   useEffect(() => {
     if (user?.id !== "usr-jhoseline") {
@@ -758,7 +973,13 @@ export default function DashboardPage() {
       "kivo-show-login-summary",
     );
 
-    setLoginSummaryOpen(true);
+    const timeoutId = window.setTimeout(() => {
+      setLoginSummaryOpen(true);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
   }, [user]);
 
   const baseApplication = INITIAL_APPLICATIONS.find(
@@ -827,14 +1048,11 @@ export default function DashboardPage() {
         identityNumber: "7214589",
         city: "El Alto",
         currentStep: "DOCUMENTS",
-        completedStepCodes: [
-          "PERSONAL_DATA",
-          "EMPLOYMENT",
-          "FINANCIAL_INFORMATION",
-          "LOAN_SIMULATION",
-        ],
-        progress: 40,
-        nextAction: "Cargar documentación",
+        completedStepCodes: baseApplication.onboarding.steps.map(
+          (step) => step.code,
+        ),
+        progress: 100,
+        nextAction: "Revisar para pre aprobación",
       }),
 
       createMockApplication(baseApplication, {
@@ -844,13 +1062,57 @@ export default function DashboardPage() {
         lastName: "Vargas",
         identityNumber: "7482365",
         city: "La Paz",
-        currentStep: "EMPLOYMENT",
-        completedStepCodes: ["PERSONAL_DATA"],
-        progress: 10,
-        nextAction: "Completar actividad laboral",
+        currentStep: "DOCUMENTS",
+        completedStepCodes: baseApplication.onboarding.steps.map(
+          (step) => step.code,
+        ),
+        progress: 100,
+        nextAction: "Revisar para pre aprobación",
       }),
     ];
   }, [baseApplication]);
+
+  const followUpApplications = applications.filter(
+    (application) =>
+      application.status !== "PREAPPROVED" &&
+      application.status !== "COMPLEMENTARY_DOCUMENTATION" &&
+      application.status !== "FORMALIZATION",
+  );
+
+  const preApprovedApplications = applications.filter(
+    (application) =>
+      application.status === "PREAPPROVED" ||
+      application.status === "COMPLEMENTARY_DOCUMENTATION" ||
+      application.status === "FORMALIZATION",
+  );
+
+  const groupedApplications =
+    dashboardGroup === "FOLLOW_UP"
+      ? followUpApplications
+      : preApprovedApplications;
+
+  const visibleApplications =
+    dashboardGroup !== "FOLLOW_UP"
+      ? groupedApplications
+      : groupedApplications.filter((application) => {
+          if (followUpFilter === "COMPLETED") {
+            return hasCompletedOnboarding(application);
+          }
+
+          if (followUpFilter === "IN_PROGRESS") {
+            return !hasCompletedOnboarding(application);
+          }
+
+          return true;
+        });
+
+  const completedOnboardingCount = followUpApplications.filter(
+    hasCompletedOnboarding,
+  ).length;
+
+  if (user?.role === "ASESOR_PRESTAMOS") {
+    return <LoanAdvisorDashboard />;
+  }
 
   if (!baseApplication) {
     return (
@@ -886,145 +1148,158 @@ export default function DashboardPage() {
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-30" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
                   </span>
-
-                  En seguimiento
+                  {dashboardGroup === "FOLLOW_UP"
+                    ? "En seguimiento"
+                    : "Pre aprobados"}
                 </span>
               </div>
 
               <p className="mt-1 text-sm text-admin-text-soft">
-                Revisa los ingresos según el periodo seleccionado.
+                {dashboardGroup === "FOLLOW_UP"
+                  ? "Identifica rápidamente quién sigue en proceso y quién ya completó los 6 pasos."
+                  : "Gestiona las solicitudes que ya pasaron a pre aprobación."}
               </p>
             </div>
 
-            <div className="inline-flex w-fit items-center gap-3 rounded-2xl bg-[#03AEFE] px-5 py-3 text-white">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                <UserRound
-                  aria-hidden="true"
-                  size={19}
-                />
-              </div>
-
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-white/70">
-                  {period === "TODAY"
-                    ? "Hoy"
-                    : period === "YESTERDAY"
-                      ? "Ayer"
-                      : period === "WEEK"
-                        ? "Esta semana"
-                        : "Este mes"}
-                </p>
-
-                <p className="mt-0.5 text-sm font-bold leading-[14px] text-white">
-                  {applications.length} solicitudes
-                </p>
-              </div>
+            <div className="rounded-2xl bg-[#03AEFE] px-5 py-3 text-white">
+              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-white/70">
+                {dashboardGroup === "FOLLOW_UP"
+                  ? "Seguimiento"
+                  : "Pre aprobados"}
+              </p>
+              <p className="mt-0.5 text-sm font-bold">
+                {visibleApplications.length} solicitudes
+              </p>
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-3">
-            <div className="inline-flex rounded-xl border border-admin-border bg-white p-1">
+          <div className="flex flex-col gap-4 rounded-2xl border border-admin-border bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDashboardGroup("FOLLOW_UP");
+                  setFollowUpFilter("IN_PROGRESS");
+                }}
+                className={[
+                  "inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all duration-200",
+                  dashboardGroup === "FOLLOW_UP" &&
+                  followUpFilter === "IN_PROGRESS"
+                    ? "border-[#03AEFE] bg-[#03AEFE] text-white shadow-sm"
+                    : "border-admin-border bg-white text-admin-text-soft hover:border-[#03AEFE]/40 hover:bg-[#EAF7FF] hover:text-primary-dark",
+                ].join(" ")}
+              >
+                En seguimiento
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setDashboardGroup("FOLLOW_UP");
+                  setFollowUpFilter("COMPLETED");
+                }}
+                className={[
+                  "inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all duration-200",
+                  dashboardGroup === "FOLLOW_UP" &&
+                  followUpFilter === "COMPLETED"
+                    ? "border-[#03AEFE] bg-[#03AEFE] text-white shadow-sm"
+                    : "border-admin-border bg-white text-admin-text-soft hover:border-[#03AEFE]/40 hover:bg-[#EAF7FF] hover:text-primary-dark",
+                ].join(" ")}
+              >
+                Onboarding completado
+
+                <span
+                  className={[
+                    "inline-flex h-6 min-w-6 items-center justify-center rounded-lg px-1.5 text-[11px] font-bold transition-colors",
+                    dashboardGroup === "FOLLOW_UP" &&
+                    followUpFilter === "COMPLETED"
+                      ? "bg-white/20 text-white"
+                      : "bg-surface-blue text-primary-dark",
+                  ].join(" ")}
+                >
+                  {completedOnboardingCount}
+                </span>
+              </button>
+
               <button
                 type="button"
                 onClick={() =>
-                  setDashboardView("LIST")
+                  setDashboardGroup("PRE_APPROVED")
                 }
                 className={[
-                  "inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-xs font-bold transition-colors",
-                  dashboardView === "LIST"
-                    ? "bg-black text-white"
-                    : "text-admin-text-soft hover:bg-admin-surface-soft",
+                  "inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all duration-200",
+                  dashboardGroup === "PRE_APPROVED"
+                    ? "border-black bg-black text-white shadow-sm"
+                    : "border-admin-border bg-white text-admin-text-soft hover:border-admin-text/20 hover:bg-admin-surface-soft hover:text-admin-text",
                 ].join(" ")}
               >
-                <LayoutList
-                  aria-hidden="true"
-                  size={15}
-                />
+                Proceso de evaluación
+              </button>
+            </div>
 
+            <div className="inline-flex w-fit rounded-xl bg-admin-surface-soft p-1">
+              <button
+                type="button"
+                onClick={() => setDashboardView("LIST")}
+                className={[
+                  "inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-xs font-bold transition-all duration-200",
+                  dashboardView === "LIST"
+                    ? "bg-white text-admin-text shadow-sm"
+                    : "text-admin-text-soft hover:text-admin-text",
+                ].join(" ")}
+              >
+                <LayoutList aria-hidden="true" size={15} />
                 Lista
               </button>
 
               <button
                 type="button"
-                onClick={() =>
-                  setDashboardView("FLOW")
-                }
+                onClick={() => setDashboardView("FLOW")}
                 className={[
-                  "inline-flex h-9 items-center justify-center gap-2 rounded-lg px-3.5 text-xs font-bold transition-colors",
+                  "inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-xs font-bold transition-all duration-200",
                   dashboardView === "FLOW"
-                    ? "bg-black text-white"
-                    : "text-admin-text-soft hover:bg-admin-surface-soft",
+                    ? "bg-white text-admin-text shadow-sm"
+                    : "text-admin-text-soft hover:text-admin-text",
                 ].join(" ")}
               >
-                <Columns3
-                  aria-hidden="true"
-                  size={15}
-                />
-
+                <Columns3 aria-hidden="true" size={15} />
                 Flujo
               </button>
             </div>
-
-            {dashboardView === "FLOW" ? (
-              <p className="hidden text-xs text-admin-text-muted sm:block">
-                Arrastra las solicitudes para cambiar su estado.
-              </p>
-            ) : null}
           </div>
-
-          {dashboardView === "LIST" ? (
-          <div className="flex flex-col gap-3 rounded-2xl border border-admin-border bg-white p-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-1 overflow-x-auto">
-              {DASHBOARD_PERIODS.map((item) => {
-                const active = period === item.value;
-
-                return (
-                  <button
-                    key={item.value}
-                    type="button"
-                    onClick={() => setPeriod(item.value)}
-                    className={[
-                      "h-10 shrink-0 rounded-xl px-4 text-sm font-semibold transition-colors",
-                      active
-                        ? "bg-ink text-white"
-                        : "text-admin-text-soft hover:bg-admin-surface-soft hover:text-admin-text",
-                    ].join(" ")}
-                  >
-                    {item.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <button
-              type="button"
-              className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold text-admin-text-soft transition-colors hover:bg-admin-surface-soft hover:text-admin-text"
-            >
-              <CalendarDays
-                aria-hidden="true"
-                size={16}
-              />
-
-              Elegir fecha
-            </button>
-          </div>
-          ) : null}
         </section>
+
 
         {dashboardView === "FLOW" ? (
           <ApplicationsFlowBoard
-            applications={applications}
+            applications={groupedApplications}
+            group={dashboardGroup}
+            followUpFilter={followUpFilter}
           />
         ) : (
-        <section className="space-y-3">
-          {applications.map((application, index) => (
-            <ApplicationAccordionCard
-              key={application.id}
-              application={application}
-              defaultOpen={index === 0}
-            />
-          ))}
-        </section>
+          <section className="space-y-3">
+            {visibleApplications.length > 0 ? (
+              visibleApplications.map((application) => (
+                <ApplicationAccordionCard
+                  key={application.id}
+                  application={application}
+                  open={openApplicationId === application.id}
+                  onToggle={() =>
+                    toggleApplication(application.id)
+                  }
+                />
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-admin-border bg-white p-8 text-center">
+                <p className="text-sm font-semibold text-admin-text">
+                  No hay solicitudes en esta vista.
+                </p>
+                <p className="mt-1 text-xs text-admin-text-soft">
+                  Cambia el filtro para revisar otras solicitudes.
+                </p>
+              </div>
+            )}
+          </section>
         )}
       </div>
 

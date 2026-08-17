@@ -17,6 +17,15 @@ export const MOCK_AUTH_USERS: MockAuthUser[] = [
     fullName: "Jhoseline Apaza",
     email: "jhoseline.apaza@gencorpbo.com",
     password: "123456",
-    role: "ASSIGNED_ADVISOR",
+    role: "GESTOR_PRESTAMOS",
+  },
+  {
+    id: "usr-judith",
+    firstName: "Judith",
+    lastName: "Blanco",
+    fullName: "Judith Blanco",
+    email: "judith.blanco@gencorpbo.com",
+    password: "123456",
+    role: "ASESOR_PRESTAMOS",
   },
 ];

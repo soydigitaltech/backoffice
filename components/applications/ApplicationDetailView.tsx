@@ -1,44 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
   BriefcaseBusiness,
   Building2,
-  CalendarDays,
   Check,
+  ChevronDown,
   ChevronRight,
   CircleDollarSign,
   FileCheck2,
   FileText,
   Home,
-  Landmark,
   Mail,
-  MapPin,
   MessageCircle,
-  Phone,
   ShieldCheck,
-  UserPlus,
   UserRound,
-  UsersRound,
   WalletCards,
   Bell,
   NotebookPen,
+  Pencil,
   Plus,
   Trash2,
   X,} from "lucide-react";
 
-import ApplicationStatusBadge from "@/components/applications/ApplicationStatusBadge";
-import OnboardingTimeline from "@/components/applications/OnboardingTimeline";
 import BackofficeLayout from "@/components/layout/BackofficeLayout";
 import { INITIAL_APPLICATIONS } from "@/mocks/applications";
 import Modal from "@/components/ui/Modal";
 import {
   DOCUMENT_STATUS_LABELS,
-  SCORING_STATUS_LABELS,
-  SEGIP_STATUS_LABELS,
   type Application,
   type ApplicationDocumentStatus,
 } from "@/types/application";
@@ -58,9 +50,7 @@ type ReviewSection =
   | "EMPLOYMENT"
   | "LOAN"
   | "FINANCIAL"
-  | "DOCUMENTS"
-  | "SEGIP"
-  | "SCORING";
+  | "DOCUMENTS";
 
 type ReviewState = Partial<
   Record<ReviewSection, ReviewStatus>
@@ -89,20 +79,8 @@ const REVIEW_SECTION_LABELS: Record<ReviewSection, string> = {
   LOAN: "Préstamo solicitado",
   FINANCIAL: "Capacidad financiera",
   DOCUMENTS: "Documentación",
-  SEGIP: "Validación SEGIP",
-  SCORING: "Scoring",
 };
 
-const ADVISORS = [
-  {
-    id: "usr-002",
-    name: "Carlos Mendoza",
-  },
-  {
-    id: "usr-003",
-    name: "Luis Paredes",
-  },
-] as const;
 
 function getReviewLabel(status: ReviewStatus) {
   switch (status) {
@@ -133,21 +111,6 @@ function getReviewCardClasses(status: ReviewStatus) {
   }
 }
 
-function getReviewButtonClasses(status: ReviewStatus) {
-  switch (status) {
-    case "OBSERVED":
-      return "border-red-200 bg-red-50 text-red-600";
-
-    case "VALIDATE":
-      return "border-amber-200 bg-amber-50 text-amber-700";
-
-    case "APPROVED":
-      return "border-emerald-200 bg-emerald-50 text-emerald-700";
-
-    default:
-      return "border-admin-border bg-white text-admin-text-soft hover:border-primary/30 hover:bg-surface-blue hover:text-primary-dark";
-  }
-}
 
 function formatCurrency(value: number) {
   return new Intl.NumberFormat("es-BO", {
@@ -207,7 +170,7 @@ function getDocumentStatusClasses(
     case "VALIDATED":
       return "bg-success-bg text-success";
     case "UPLOADED":
-      return "bg-surface-blue text-primary-dark";
+      return "bg-surface-blue text-[#1B5BB6]";
     case "OBSERVED":
       return "bg-warning-bg text-warning";
     case "REJECTED":
@@ -244,6 +207,8 @@ function Section({
   children,
   reviewStatus,
   onReviewChange,
+  open,
+  onToggle,
 }: {
   title: string;
   description?: string;
@@ -251,21 +216,70 @@ function Section({
   children: React.ReactNode;
   reviewStatus?: ReviewStatus;
   onReviewChange?: (status: ReviewStatus) => void;
+  open: boolean;
+  onToggle: () => void;
 }) {
   const [reviewMenuOpen, setReviewMenuOpen] = useState(false);
+  const reviewMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!reviewMenuOpen) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        reviewMenuRef.current &&
+        !reviewMenuRef.current.contains(event.target as Node)
+      ) {
+        setReviewMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside,
+      );
+    };
+  }, [reviewMenuOpen]);
 
   const status = reviewStatus ?? "PENDING";
 
   return (
     <section
       className={[
-        "overflow-visible rounded-2xl border transition-colors duration-200",
+        "relative overflow-visible rounded-2xl border transition-all duration-200 ease-out",
+        reviewMenuOpen ? "z-40" : "z-0",
+        open
+          ? "border-[#03AEFE]/35 shadow-[0_6px_24px_rgba(0,0,0,0.04)]"
+          : "hover:border-[#03AEFE]/30",
         getReviewCardClasses(status),
       ].join(" ")}
     >
-      <div className="relative flex items-start justify-between gap-4 border-b border-admin-border px-5 py-4 sm:px-6">
-        <div className="flex min-w-0 items-start gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-admin-surface-soft text-admin-text-soft">
+      <div
+        className={[
+          "group relative flex items-start justify-between gap-4 border-b border-admin-border px-5 py-4 transition-all duration-200 ease-out sm:px-6",
+          open
+            ? "bg-[#DFF4FF]"
+            : "hover:bg-[#EAF7FF]",
+        ].join(" ")}
+      >
+        <button
+          type="button"
+          onClick={onToggle}
+          className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left"
+        >
+          <div
+            className={[
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-200 ease-out",
+              open
+                ? "scale-[1.03] bg-[#03AEFE] text-white shadow-sm"
+                : "bg-admin-surface-soft text-admin-text-soft group-hover:bg-[#03AEFE] group-hover:text-white",
+            ].join(" ")}
+          >
             <Icon
               aria-hidden="true"
               size={17}
@@ -273,10 +287,23 @@ function Section({
             />
           </div>
 
-          <div className="min-w-0">
-            <h2 className="text-sm font-bold text-admin-text">
-              {title}
-            </h2>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-bold text-admin-text">
+                {title}
+              </h2>
+
+              <ChevronDown
+                aria-hidden="true"
+                size={15}
+                className={[
+                  "shrink-0 transition-all duration-200 ease-out",
+                  open
+                    ? "rotate-180 text-[#1B5BB6]"
+                    : "text-admin-text-muted group-hover:translate-y-0.5 group-hover:text-[#1B5BB6]",
+                ].join(" ")}
+              />
+            </div>
 
             {description ? (
               <p className="mt-0.5 text-xs text-admin-text-soft">
@@ -284,10 +311,16 @@ function Section({
               </p>
             ) : null}
           </div>
-        </div>
+        </button>
 
         {onReviewChange ? (
-          <div className="relative shrink-0">
+          <div
+            ref={reviewMenuRef}
+            className={[
+              "relative shrink-0",
+              reviewMenuOpen ? "z-50" : "z-10",
+            ].join(" ")}
+          >
             <button
               type="button"
               onClick={() =>
@@ -332,7 +365,7 @@ function Section({
             </button>
 
             {reviewMenuOpen ? (
-              <div className="absolute right-0 top-11 z-50 w-[190px] overflow-hidden rounded-2xl border border-admin-border bg-white p-2 shadow-xl">
+              <div className="absolute right-0 top-11 z-[100] w-[210px] overflow-hidden rounded-2xl border border-admin-border bg-white p-2 shadow-[0_16px_45px_rgba(15,23,42,0.16)]">
                 <button
                   type="button"
                   onClick={() => {
@@ -414,8 +447,24 @@ function Section({
         ) : null}
       </div>
 
-      <div className="p-5 sm:p-6">
-        {children}
+      <div
+        className={[
+          "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+          open
+            ? "grid-rows-[1fr] opacity-100"
+            : "grid-rows-[0fr] opacity-0",
+        ].join(" ")}
+      >
+        <div className="overflow-hidden">
+          <div
+            className={[
+              "p-5 transition-transform duration-300 ease-out sm:p-6",
+              open ? "translate-y-0" : "-translate-y-1.5",
+            ].join(" ")}
+          >
+            {children}
+          </div>
+        </div>
       </div>
     </section>
   );
@@ -432,7 +481,7 @@ function ApplicationNavigation({
     <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <Link
         href="/dashboard"
-        className="inline-flex h-10 w-fit items-center gap-2 text-sm font-semibold text-admin-text-soft transition-colors hover:text-primary-dark"
+        className="inline-flex h-10 w-fit items-center gap-2 text-sm font-semibold text-admin-text-soft transition-colors hover:text-[#1B5BB6]"
       >
         <ArrowLeft
           aria-hidden="true"
@@ -447,7 +496,7 @@ function ApplicationNavigation({
         {previousApplication ? (
           <Link
             href={`/solicitudes/${previousApplication.id}`}
-            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-admin-border bg-white px-4 text-xs font-bold text-admin-text transition-colors hover:border-primary/30 hover:bg-surface-blue hover:text-primary-dark"
+            className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-admin-border bg-white px-4 text-xs font-bold text-admin-text transition-colors hover:border-primary/30 hover:bg-surface-blue hover:text-[#1B5BB6]"
           >
             <ArrowLeft
               aria-hidden="true"
@@ -501,6 +550,23 @@ function ApplicationNavigation({
 export default function ApplicationDetailView({
   application,
 }: ApplicationDetailViewProps) {
+  const [openAccordion, setOpenAccordion] =
+    useState<string | null>(null);
+
+  const toggleAccordion = (key: string) => {
+    setOpenAccordion((current) =>
+      current === key ? null : key,
+    );
+  };
+  const [editableApplicant, setEditableApplicant] = useState({
+    fullName: application.applicant.fullName,
+    birthDate: application.applicant.birthDate ?? "",
+    identityNumber: application.applicant.identityNumber,
+  });
+
+  const [editingPersonalData, setEditingPersonalData] =
+    useState(false);
+
   const [applicationInReview, setApplicationInReview] =
     useState(
       application.status === "DOCUMENT_REVIEW" ||
@@ -508,11 +574,6 @@ export default function ApplicationDetailView({
       application.status === "FORMALIZATION",
     );
 
-  const [applicationApproved, setApplicationApproved] =
-    useState(
-      application.status === "PREAPPROVED" ||
-      application.status === "FORMALIZATION",
-    );
 
   const [reviewWorkspaceOpen, setReviewWorkspaceOpen] =
     useState(false);
@@ -544,14 +605,10 @@ export default function ApplicationDetailView({
       string,
       "PENDING" | "OBSERVED" | "VALIDATE" | "APPROVED"
     >>({});
+const [creditReportFile, setCreditReportFile] =
+    useState<File | null>(null);
 
-  const [selectedDocumentId, setSelectedDocumentId] =
-    useState<string | null>(null);
 
-  const selectedDocument =
-    application.documents.find(
-      (document) => document.id === selectedDocumentId,
-    ) ?? null;
 
   const setDocumentReview = (
     documentId: string,
@@ -575,17 +632,9 @@ export default function ApplicationDetailView({
   const [contactChannel, setContactChannel] =
     useState<ContactChannel>("WHATSAPP");
 
-  const [assignModalOpen, setAssignModalOpen] =
-    useState(false);
 
-  const [selectedAdvisorId, setSelectedAdvisorId] =
-    useState("");
 
-  const [assignedAdvisor, setAssignedAdvisor] =
-    useState<string | null>(null);
 
-  const [assignmentMessage, setAssignmentMessage] =
-    useState("");
 
   useEffect(() => {
     try {
@@ -602,17 +651,22 @@ export default function ApplicationDetailView({
         reminders?: ReviewReminder[];
       };
 
-      setReviewNotes(
-        Array.isArray(parsed.notes)
-          ? parsed.notes
-          : [],
-      );
+      const notes = Array.isArray(parsed.notes)
+        ? parsed.notes
+        : [];
 
-      setReviewReminders(
-        Array.isArray(parsed.reminders)
-          ? parsed.reminders
-          : [],
-      );
+      const reminders = Array.isArray(parsed.reminders)
+        ? parsed.reminders
+        : [];
+
+      const timeoutId = window.setTimeout(() => {
+        setReviewNotes(notes);
+        setReviewReminders(reminders);
+      }, 0);
+
+      return () => {
+        window.clearTimeout(timeoutId);
+      };
     } catch (error) {
       console.error(
         "No se pudo cargar el bloc de revisión:",
@@ -753,8 +807,6 @@ export default function ApplicationDetailView({
     "EMPLOYMENT",
     "LOAN",
     "FINANCIAL",
-    "SEGIP",
-    "SCORING",
   ];
 
   const sectionsApproved =
@@ -773,38 +825,33 @@ export default function ApplicationDetailView({
       );
     });
 
-  const approvedForAssignment =
+  const readyForReview =
     sectionsApproved && documentsApproved;
 
-  const rawPhone =
-    application.applicant.phone.replace(/\D/g, "");
+  const approvedSectionsCount =
+    requiredReviewSections.filter(
+      (section) => reviews[section] === "APPROVED",
+    ).length;
 
-  const whatsappPhone = rawPhone.startsWith("591")
-    ? rawPhone
-    : `591${rawPhone}`;
+  const approvedDocumentsCount =
+    application.documents.filter((document) => {
+      const localStatus = documentReviews[document.id];
 
-  const whatsappMessage = encodeURIComponent(
-    `Hola ${application.applicant.firstName}, te escribimos de Kivo por tu solicitud ${application.code}. Tenemos información pendiente de revisar contigo. ¿Podemos ayudarte a completarla?`,
-  );
+      return (
+        localStatus === "APPROVED" ||
+        document.status === "VALIDATED"
+      );
+    }).length;
 
-  const whatsappUrl =
-    `https://wa.me/${whatsappPhone}?text=${whatsappMessage}`;
+  const totalValidationItems =
+    requiredReviewSections.length +
+    application.documents.length;
 
-  const handleAssignAdvisor = () => {
-    const advisor = ADVISORS.find(
-      (item) => item.id === selectedAdvisorId,
-    );
+  const approvedValidationItems =
+    approvedSectionsCount + approvedDocumentsCount;
 
-    if (!advisor) {
-      return;
-    }
-
-    setAssignedAdvisor(advisor.name);
-    setAssignmentMessage(
-      `Asesor asignado correctamente: ${advisor.name}`,
-    );
-    setAssignModalOpen(false);
-  };
+  const pendingValidationItems =
+    totalValidationItems - approvedValidationItems;
 
   const handleSendObservation = () => {
     if (!observationMessage.trim()) {
@@ -864,9 +911,6 @@ export default function ApplicationDetailView({
     0,
   );
 
-  const completedSteps = application.onboarding.steps.filter(
-    (step) => step.status === "COMPLETED",
-  ).length;
 
   return (
     <BackofficeLayout
@@ -880,977 +924,826 @@ export default function ApplicationDetailView({
         />
 
         {/* CLIENTE */}
-        <section className="overflow-hidden rounded-2xl border border-admin-border bg-white">
-          <div className="p-5 sm:p-6">
-            <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-              <div className="flex min-w-0 items-start gap-4">
-                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-surface-blue text-base font-bold text-primary-dark">
-                  {getInitials(application)}
-                </div>
-
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-xl font-bold tracking-[-0.02em] text-admin-text">
-                      {application.applicant.fullName}
-                    </h1>
-
-                    <ApplicationStatusBadge
-                      status={application.status}
-                      compact
-                    />
-                  </div>
-
-                  <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-admin-text-soft">
-                    <span className="inline-flex items-center gap-1.5">
-                      <FileText
-                        aria-hidden="true"
-                        size={13}
-                      />
-
-                      {application.code}
-                    </span>
-
-                    <span>
-                      CI {application.applicant.identityNumber}
-                    </span>
-
-                    <span className="inline-flex items-center gap-1.5">
-                      <MapPin
-                        aria-hidden="true"
-                        size={13}
-                      />
-
-                      {application.applicant.city}
-                    </span>
-                  </div>
-                </div>
+        <section className="rounded-2xl border border-admin-border bg-white">
+          <div className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-surface-blue text-base font-bold text-[#1B5BB6]">
+                {getInitials(application)}
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="h-[52px] rounded-xl bg-admin-surface-soft px-4 py-2.5">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-admin-text-muted">
-                    Etapa actual
-                  </p>
-
-                  <p className="mt-0.5 text-xs font-bold text-admin-text">
-                    {application.onboarding.currentStepLabel}
-                  </p>
-                </div>
-
-                <div className="h-[52px] rounded-xl bg-surface-blue px-4 py-2.5">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-primary-dark/70">
-                    Avance
-                  </p>
-
-                  <p className="mt-0.5 text-xs font-bold text-primary-dark">
-                    {application.onboarding.progress}%
-                  </p>
-                </div>
-
-                {!applicationInReview ? (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setApplicationInReview(true)
-                    }
-                    className="inline-flex h-[52px] items-center justify-center gap-2 rounded-xl bg-black px-5 text-xs font-bold text-white transition-colors hover:bg-primary-dark"
-                  >
-                    <ShieldCheck
-                      aria-hidden="true"
-                      size={16}
-                      strokeWidth={1.9}
-                    />
-
-                    Pasar a revisión
-                  </button>
-                ) : assignedAdvisor ? (
-                  <div className="inline-flex h-[52px] items-center gap-3 rounded-xl bg-surface-blue px-4">
-                    <UserRound
-                      aria-hidden="true"
-                      size={17}
-                      strokeWidth={1.9}
-                      className="text-primary-dark"
-                    />
-
-                    <div>
-                      <p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-primary-dark/60">
-                        Asignada
-                      </p>
-
-                      <p className="mt-0.5 text-xs font-bold text-primary-dark">
-                        {assignedAdvisor}
-                      </p>
-                    </div>
-                  </div>
-                ) : applicationApproved ? (
-                  <>
-                    <div className="inline-flex h-[52px] items-center gap-2 rounded-xl bg-emerald-50 px-4 text-emerald-700">
-                      <Check
-                        aria-hidden="true"
-                        size={16}
-                        strokeWidth={2.2}
-                      />
-
-                      <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-emerald-600/70">
-                          Estado
-                        </p>
-
-                        <p className="mt-0.5 text-xs font-bold">
-                          Aprobada
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedAdvisorId("");
-                        setAssignModalOpen(true);
-                      }}
-                      className="inline-flex h-[52px] items-center justify-center gap-2 rounded-xl bg-black px-5 text-xs font-bold text-white transition-colors hover:bg-primary-dark"
-                    >
-                      <UserPlus
-                        aria-hidden="true"
-                        size={16}
-                        strokeWidth={1.9}
-                      />
-
-                      Asignar asesor
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="inline-flex h-[52px] items-center gap-2 rounded-xl bg-amber-50 px-4 text-amber-700">
-                      <ShieldCheck
-                        aria-hidden="true"
-                        size={16}
-                        strokeWidth={2}
-                      />
-
-                      <div>
-                        <p className="text-[9px] font-semibold uppercase tracking-[0.06em] text-amber-600/70">
-                          Estado
-                        </p>
-
-                        <p className="mt-0.5 text-xs font-bold">
-                          En revisión
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      disabled={!approvedForAssignment}
-                      onClick={() =>
-                        setApplicationApproved(true)
-                      }
-                      title={
-                        approvedForAssignment
-                          ? "Aprobar solicitud"
-                          : "Debes aprobar todos los datos y documentos antes de continuar"
-                      }
-                      className={[
-                        "inline-flex h-[52px] items-center justify-center gap-2 rounded-xl px-5 text-xs font-bold transition-colors",
-                        approvedForAssignment
-                          ? "bg-black text-white hover:bg-primary-dark"
-                          : "cursor-not-allowed bg-admin-surface-soft text-admin-text-muted opacity-60",
-                      ].join(" ")}
-                    >
-                      <Check
-                        aria-hidden="true"
-                        size={16}
-                        strokeWidth={2.2}
-                      />
-
-                      Aprobar
-                    </button>
-                  </>
-                )}
+              <div className="min-w-0">
+                <h1 className="truncate text-xl font-bold tracking-[-0.02em] text-admin-text">
+                  {application.applicant.fullName}
+                </h1>
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 border-t border-admin-border pt-5 sm:grid-cols-2 lg:grid-cols-4">
-              <InfoItem
-                label="Celular"
-                value={
-                  <span className="inline-flex items-center gap-1.5">
-                    <Phone size={13} aria-hidden="true" />
-                    {application.applicant.phone}
-                  </span>
-                }
-              />
-
-              <InfoItem
-                label="Correo electrónico"
-                value={
-                  <span className="inline-flex items-center gap-1.5">
-                    <Mail size={13} aria-hidden="true" />
-                    {application.applicant.email}
-                  </span>
-                }
-              />
-
-              <InfoItem
-                label="Edad"
-                value={`${application.applicant.age} años`}
-              />
-
-              <InfoItem
-                label="Responsable"
-                value={
-                  assignedAdvisor
-                    ? assignedAdvisor
-                    : "Sin asignar"
-                }
-              />
-            </div>
+            
           </div>
         </section>
 
-        {/* ONBOARDING */}
-        <section className="overflow-hidden rounded-2xl border border-admin-border bg-white">
-          <div className="flex flex-col gap-3 border-b border-admin-border px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <div>
-              <h2 className="text-sm font-bold text-admin-text">
-                Proceso del onboarding
+        {/* EXPEDIENTE DE VALIDACIÓN */}
+        <div className="grid gap-5 xl:grid-cols-2">
+          <section className="overflow-visible rounded-2xl border border-admin-border bg-white">
+            <div className="border-b border-admin-border px-5 py-4 sm:px-6">
+              <h2 className="text-base font-bold text-admin-text">
+                Datos ingresados
               </h2>
-
-              <p className="mt-0.5 text-xs text-admin-text-soft">
-                {completedSteps} de{" "}
-                {application.onboarding.steps.length} etapas completadas
+              <p className="mt-1 text-xs text-admin-text-soft">
+                Revisa y valida la información registrada por el cliente.
               </p>
             </div>
 
-            <p className="text-xs font-bold text-primary-dark">
-              {application.onboarding.progress}% completado
-            </p>
-          </div>
+            <div className="space-y-4 bg-admin-page/30 p-4 sm:p-5">
 
-          <div className="overflow-x-auto p-5 sm:p-6">
-            <OnboardingTimeline
-              steps={application.onboarding.steps}
-            />
-          </div>
-
-          <div className="border-t border-admin-border bg-admin-surface-soft px-5 py-4 sm:px-6">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <p className="text-[11px] font-medium text-admin-text-muted">
-                  Próxima acción
+            <Section
+              title="Datos personales"
+              reviewStatus={reviews.PERSONAL_DATA}
+              onReviewChange={(status) =>
+                handleReviewChange("PERSONAL_DATA", status)
+              }
+              description="Información registrada por el cliente."
+              icon={UserRound}
+              open={openAccordion === "PERSONAL_DATA"}
+              onToggle={() => toggleAccordion("PERSONAL_DATA")}
+            >
+              <div className="mb-4 flex items-center justify-between gap-3">
+                <p className="text-xs text-admin-text-soft">
+                  El gestor puede corregir los datos principales antes de validar.
                 </p>
 
-                <p className="mt-1 text-sm font-bold text-admin-text">
-                  {application.nextAction}
-                </p>
-
-                {application.onboarding.nextPendingField ? (
-                  <p className="mt-1 text-xs text-admin-text-soft">
-                    Pendiente:{" "}
-                    {application.onboarding.nextPendingField}
-                  </p>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setEditingPersonalData((current) => !current)
+                  }
+                  className="inline-flex h-9 shrink-0 items-center gap-2 rounded-xl border border-admin-border bg-white px-3 text-xs font-bold text-admin-text transition-colors hover:border-primary/30 hover:bg-surface-blue"
+                >
+                  <Pencil aria-hidden="true" size={14} />
+                  {editingPersonalData ? "Finalizar edición" : "Editar"}
+                </button>
               </div>
 
-              <div className="text-xs text-admin-text-soft">
-                Responsable:{" "}
-                <span className="font-bold text-admin-text">
-                  Sin asignar
-                </span>
-              </div>
-            </div>
-          </div>
-        </section>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label className="text-[11px] font-medium text-admin-text-muted">
+                    Nombre completo
+                  </label>
 
-        {/* RESUMEN */}
-        <div className="grid gap-5 xl:grid-cols-2">
-          <Section
-            title="Datos personales"
-            reviewStatus={reviews.PERSONAL_DATA}
-            onReviewChange={(status) =>
-              handleReviewChange("PERSONAL_DATA", status)
-            }
-            description="Información registrada por el cliente."
-            icon={UserRound}
-          >
-            <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-              <InfoItem
-                label="Nombre completo"
-                value={application.applicant.fullName}
-              />
-
-              <InfoItem
-                label="Documento de identidad"
-                value={application.applicant.identityNumber}
-              />
-
-              <InfoItem
-                label="Fecha de nacimiento"
-                value={formatDate(
-                  application.applicant.birthDate,
-                )}
-              />
-
-              <InfoItem
-                label="Edad"
-                value={`${application.applicant.age} años`}
-              />
-
-              <InfoItem
-                label="Estado civil"
-                value={application.applicant.maritalStatus}
-              />
-
-              <InfoItem
-                label="Tipo de vivienda"
-                value={
-                  <span className="inline-flex items-center gap-1.5">
-                    <Home size={14} aria-hidden="true" />
-                    {application.applicant.housingType}
-                  </span>
-                }
-              />
-
-              <InfoItem
-                label="Ciudad"
-                value={application.applicant.city}
-              />
-
-              <InfoItem
-                label="Personas dependientes"
-                value={application.employment.dependents}
-              />
-            </div>
-          </Section>
-
-          <Section
-            title="Actividad laboral"
-            reviewStatus={reviews.EMPLOYMENT}
-            onReviewChange={(status) =>
-              handleReviewChange("EMPLOYMENT", status)
-            }
-            description="Situación e ingresos declarados."
-            icon={BriefcaseBusiness}
-          >
-            <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-              <InfoItem
-                label="Tipo de actividad"
-                value={
-                  application.employment.activityType ===
-                  "SALARIED"
-                    ? "Asalariado"
-                    : "Independiente"
-                }
-              />
-
-              <InfoItem
-                label={
-                  application.employment.activityType ===
-                  "SALARIED"
-                    ? "Empresa"
-                    : "Actividad"
-                }
-                value={
-                  <span className="inline-flex items-center gap-1.5">
-                    <Building2 size={14} aria-hidden="true" />
-                    {application.employment.companyOrActivity}
-                  </span>
-                }
-              />
-
-              <InfoItem
-                label={
-                  application.employment.activityType ===
-                  "SALARIED"
-                    ? "Cargo"
-                    : "Ocupación"
-                }
-                value={
-                  application.employment.positionOrOccupation
-                }
-              />
-
-              <InfoItem
-                label="Antigüedad"
-                value={formatMonths(
-                  application.employment.jobSeniorityMonths,
-                )}
-              />
-
-              <InfoItem
-                label="Ingreso neto mensual"
-                value={formatCurrency(
-                  application.employment.monthlyNetIncome,
-                )}
-              />
-
-              <InfoItem
-                label="Dependientes"
-                value={application.employment.dependents}
-              />
-            </div>
-          </Section>
-
-          <Section
-            title="Préstamo solicitado"
-            reviewStatus={reviews.LOAN}
-            onReviewChange={(status) =>
-              handleReviewChange("LOAN", status)
-            }
-            description="Condiciones calculadas durante la simulación."
-            icon={CircleDollarSign}
-          >
-            <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-              <InfoItem
-                label="Monto solicitado"
-                value={formatCurrency(
-                  application.loan.requestedAmount,
-                )}
-              />
-
-              <InfoItem
-                label="Plazo"
-                value={`${application.loan.termMonths} meses`}
-              />
-
-              <InfoItem
-                label="Cuota estimada"
-                value={formatCurrency(
-                  application.loan.estimatedInstallment,
-                )}
-              />
-
-              <InfoItem
-                label="Día de pago"
-                value={`Día ${application.loan.paymentDay}`}
-              />
-
-              <InfoItem
-                label="Tasa anual"
-                value={`${application.loan.annualInterestRate}%`}
-              />
-
-              <InfoItem
-                label="Destino del préstamo"
-                value={application.loanPurpose}
-              />
-            </div>
-          </Section>
-
-          <Section
-            title="Capacidad financiera"
-            reviewStatus={reviews.FINANCIAL}
-            onReviewChange={(status) =>
-              handleReviewChange("FINANCIAL", status)
-            }
-            description="Resumen de ingresos, deudas y capacidad de pago."
-            icon={WalletCards}
-          >
-            <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-              <InfoItem
-                label="Ingreso mensual"
-                value={formatCurrency(
-                  application.employment.monthlyNetIncome,
-                )}
-              />
-
-              <InfoItem
-                label="Deuda declarada"
-                value={formatCurrency(totalDeclaredDebt)}
-              />
-
-              <InfoItem
-                label="Relación deuda / ingreso"
-                value={`${application.loan.debtToIncomeRatio}%`}
-              />
-
-              <InfoItem
-                label="Capacidad residual"
-                value={formatCurrency(
-                  application.loan.residualCapacity,
-                )}
-              />
-
-              <InfoItem
-                label="Resultado"
-                value={
-                  application.loan.paymentCapacityResult ===
-                  "VIABLE"
-                    ? "Viable"
-                    : application.loan.paymentCapacityResult ===
-                        "REVIEW"
-                      ? "Requiere revisión"
-                      : "No viable"
-                }
-              />
-
-              <InfoItem
-                label="Extractos disponibles"
-                value={
-                  application.hasBankStatementsAvailable
-                    ? "Sí"
-                    : "No"
-                }
-              />
-            </div>
-
-            {application.declaredDebts.length > 0 ? (
-              <div className="mt-5 border-t border-admin-border pt-5">
-                <p className="mb-3 text-xs font-bold text-admin-text">
-                  Deudas declaradas
-                </p>
-
-                <div className="space-y-2">
-                  {application.declaredDebts.map((debt) => (
-                    <div
-                      key={debt.id}
-                      className="flex items-center justify-between gap-4 rounded-xl bg-admin-surface-soft px-4 py-3"
-                    >
-                      <span className="text-xs font-medium text-admin-text-soft">
-                        {debt.entity}
-                      </span>
-
-                      <span className="text-sm font-bold text-admin-text">
-                        {formatCurrency(debt.amount)}
-                      </span>
-                    </div>
-                  ))}
+                  {editingPersonalData ? (
+                    <input
+                      value={editableApplicant.fullName}
+                      onChange={(event) =>
+                        setEditableApplicant((current) => ({
+                          ...current,
+                          fullName: event.target.value,
+                        }))
+                      }
+                      className="mt-1 h-11 w-full rounded-xl border border-admin-border bg-white px-3 text-sm font-semibold text-admin-text outline-none transition-colors focus:border-primary"
+                    />
+                  ) : (
+                    <p className="mt-1 text-sm font-semibold text-admin-text">
+                      {editableApplicant.fullName || "—"}
+                    </p>
+                  )}
                 </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-admin-text-muted">
+                    Carnet de identidad
+                  </label>
+
+                  {editingPersonalData ? (
+                    <input
+                      value={editableApplicant.identityNumber}
+                      onChange={(event) =>
+                        setEditableApplicant((current) => ({
+                          ...current,
+                          identityNumber: event.target.value,
+                        }))
+                      }
+                      className="mt-1 h-11 w-full rounded-xl border border-admin-border bg-white px-3 text-sm font-semibold text-admin-text outline-none transition-colors focus:border-primary"
+                    />
+                  ) : (
+                    <p className="mt-1 text-sm font-semibold text-admin-text">
+                      {editableApplicant.identityNumber || "—"}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-medium text-admin-text-muted">
+                    Fecha de nacimiento
+                  </label>
+
+                  {editingPersonalData ? (
+                    <input
+                      type="date"
+                      value={editableApplicant.birthDate}
+                      onChange={(event) =>
+                        setEditableApplicant((current) => ({
+                          ...current,
+                          birthDate: event.target.value,
+                        }))
+                      }
+                      className="mt-1 h-11 w-full rounded-xl border border-admin-border bg-white px-3 text-sm font-semibold text-admin-text outline-none transition-colors focus:border-primary"
+                    />
+                  ) : (
+                    <p className="mt-1 text-sm font-semibold text-admin-text">
+                      {formatDate(editableApplicant.birthDate)}
+                    </p>
+                  )}
+                </div>
+
+                <InfoItem
+                  label="Estado civil"
+                  value={application.applicant.maritalStatus}
+                />
+
+                <InfoItem
+                  label="Tipo de vivienda"
+                  value={
+                    <span className="inline-flex items-center gap-1.5">
+                      <Home size={14} aria-hidden="true" />
+                      {application.applicant.housingType}
+                    </span>
+                  }
+                />
+
+                <InfoItem
+                  label="Ciudad"
+                  value={application.applicant.city}
+                />
+
+                <InfoItem
+                  label="Personas dependientes"
+                  value={application.employment.dependents}
+                />
               </div>
-            ) : null}
-          </Section>
-        </div>
+            </Section>
 
-        {/* DOCUMENTACIÓN */}
-        <section className="overflow-hidden rounded-2xl border border-admin-border bg-white">
-          <div className="flex items-start gap-3 border-b border-admin-border px-5 py-4 sm:px-6">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-admin-surface-soft text-admin-text-soft">
-              <FileCheck2
-                aria-hidden="true"
-                size={17}
-                strokeWidth={1.8}
-              />
+  
+            <Section
+              title="Actividad laboral"
+              open={openAccordion === "EMPLOYMENT"}
+              onToggle={() => toggleAccordion("EMPLOYMENT")}
+              reviewStatus={reviews.EMPLOYMENT}
+              onReviewChange={(status) =>
+                handleReviewChange("EMPLOYMENT", status)
+              }
+              description="Situación e ingresos declarados."
+              icon={BriefcaseBusiness}
+            >
+              <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                <InfoItem
+                  label="Tipo de actividad"
+                  value={
+                    application.employment.activityType ===
+                    "SALARIED"
+                      ? "Asalariado"
+                      : "Independiente"
+                  }
+                />
+  
+                <InfoItem
+                  label={
+                    application.employment.activityType ===
+                    "SALARIED"
+                      ? "Empresa"
+                      : "Actividad"
+                  }
+                  value={
+                    <span className="inline-flex items-center gap-1.5">
+                      <Building2 size={14} aria-hidden="true" />
+                      {application.employment.companyOrActivity}
+                    </span>
+                  }
+                />
+  
+                <InfoItem
+                  label={
+                    application.employment.activityType ===
+                    "SALARIED"
+                      ? "Cargo"
+                      : "Ocupación"
+                  }
+                  value={
+                    application.employment.positionOrOccupation
+                  }
+                />
+  
+                <InfoItem
+                  label="Antigüedad"
+                  value={formatMonths(
+                    application.employment.jobSeniorityMonths,
+                  )}
+                />
+  
+                <InfoItem
+                  label="Ingreso neto mensual"
+                  value={formatCurrency(
+                    application.employment.monthlyNetIncome,
+                  )}
+                />
+  
+                <InfoItem
+                  label="Dependientes"
+                  value={application.employment.dependents}
+                />
+              </div>
+            </Section>
+
+  
+            <Section
+              title="Préstamo solicitado"
+              open={openAccordion === "LOAN"}
+              onToggle={() => toggleAccordion("LOAN")}
+              reviewStatus={reviews.LOAN}
+              onReviewChange={(status) =>
+                handleReviewChange("LOAN", status)
+              }
+              description="Condiciones calculadas durante la simulación."
+              icon={CircleDollarSign}
+            >
+              <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                <InfoItem
+                  label="Monto solicitado"
+                  value={formatCurrency(
+                    application.loan.requestedAmount,
+                  )}
+                />
+  
+                <InfoItem
+                  label="Plazo"
+                  value={`${application.loan.termMonths} meses`}
+                />
+  
+                <InfoItem
+                  label="Cuota estimada"
+                  value={formatCurrency(
+                    application.loan.estimatedInstallment,
+                  )}
+                />
+  
+                <InfoItem
+                  label="Día de pago"
+                  value={`Día ${application.loan.paymentDay}`}
+                />
+  
+                <InfoItem
+                  label="Tasa anual"
+                  value={`${application.loan.annualInterestRate}%`}
+                />
+  
+                <InfoItem
+                  label="Destino del préstamo"
+                  value={application.loanPurpose}
+                />
+              </div>
+            </Section>
+
+  
+            <Section
+              title="Capacidad financiera"
+              open={openAccordion === "FINANCIAL"}
+              onToggle={() => toggleAccordion("FINANCIAL")}
+              reviewStatus={reviews.FINANCIAL}
+              onReviewChange={(status) =>
+                handleReviewChange("FINANCIAL", status)
+              }
+              description="Resumen de ingresos, deudas y capacidad de pago."
+              icon={WalletCards}
+            >
+              <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
+                <InfoItem
+                  label="Ingreso mensual"
+                  value={formatCurrency(
+                    application.employment.monthlyNetIncome,
+                  )}
+                />
+  
+                <InfoItem
+                  label="Deuda declarada"
+                  value={formatCurrency(totalDeclaredDebt)}
+                />
+  
+                <InfoItem
+                  label="Relación deuda / ingreso"
+                  value={`${application.loan.debtToIncomeRatio}%`}
+                />
+  
+                <InfoItem
+                  label="Capacidad residual"
+                  value={formatCurrency(
+                    application.loan.residualCapacity,
+                  )}
+                />
+  
+                <InfoItem
+                  label="Resultado"
+                  value={
+                    application.loan.paymentCapacityResult ===
+                    "VIABLE"
+                      ? "Viable"
+                      : application.loan.paymentCapacityResult ===
+                          "REVIEW"
+                        ? "Requiere revisión"
+                        : "No viable"
+                  }
+                />
+  
+                <InfoItem
+                  label="Extractos disponibles"
+                  value={
+                    application.hasBankStatementsAvailable
+                      ? "Sí"
+                      : "No"
+                  }
+                />
+              </div>
+  
+              {application.declaredDebts.length > 0 ? (
+                <div className="mt-5 border-t border-admin-border pt-5">
+                  <p className="mb-3 text-xs font-bold text-admin-text">
+                    Deudas declaradas
+                  </p>
+  
+                  <div className="space-y-2">
+                    {application.declaredDebts.map((debt) => (
+                      <div
+                        key={debt.id}
+                        className="flex items-center justify-between gap-4 rounded-xl bg-admin-surface-soft px-4 py-3"
+                      >
+                        <span className="text-xs font-medium text-admin-text-soft">
+                          {debt.entity}
+                        </span>
+  
+                        <span className="text-sm font-bold text-admin-text">
+                          {formatCurrency(debt.amount)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </Section>
             </div>
+          </section>
 
-            <div>
-              <h2 className="text-sm font-bold text-admin-text">
+          <section className="overflow-hidden rounded-2xl border border-admin-border bg-white">
+            <div className="border-b border-admin-border px-5 py-4 sm:px-6">
+              <h2 className="text-base font-bold text-admin-text">
                 Documentación
               </h2>
-
-              <p className="mt-0.5 text-xs text-admin-text-soft">
-                Selecciona un documento para revisarlo.
+              <p className="mt-1 text-xs text-admin-text-soft">
+                Valida la autorización, el carnet y la selfie sin salir de esta vista.
               </p>
             </div>
-          </div>
 
-          <div className="divide-y divide-admin-border px-5 sm:px-6">
-            {application.documents.map((document) => {
-              const reviewStatus =
-                documentReviews[document.id] ?? "PENDING";
+            <div className="space-y-4 p-5 sm:p-6">
+              {application.documents.map((document) => {
+                const reviewStatus =
+                  documentReviews[document.id] ?? "PENDING";
 
-              const statusLabel =
-                reviewStatus === "OBSERVED"
-                  ? "Observado"
-                  : reviewStatus === "VALIDATE"
-                    ? "Validar"
+                const statusLabel =
+                  reviewStatus === "OBSERVED"
+                    ? "Observado"
                     : reviewStatus === "APPROVED"
                       ? "Aprobado"
                       : DOCUMENT_STATUS_LABELS[document.status];
 
-              const statusClasses =
-                reviewStatus === "OBSERVED"
-                  ? "bg-red-50 text-red-600"
-                  : reviewStatus === "VALIDATE"
-                    ? "bg-amber-50 text-amber-700"
+                const statusClasses =
+                  reviewStatus === "OBSERVED"
+                    ? "bg-red-50 text-red-600"
                     : reviewStatus === "APPROVED"
                       ? "bg-emerald-50 text-emerald-700"
                       : getDocumentStatusClasses(document.status);
 
-              return (
-                <button
-                  key={document.id}
-                  type="button"
-                  onClick={() =>
-                    setSelectedDocumentId(document.id)
-                  }
-                  className="group flex w-full items-center justify-between gap-4 py-4 text-left transition-colors hover:bg-admin-surface-soft/50"
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-admin-surface-soft text-admin-text-soft transition-colors group-hover:bg-surface-blue group-hover:text-primary-dark">
-                      <FileText
-                        aria-hidden="true"
-                        size={17}
-                        strokeWidth={1.8}
+                return (
+                  <article
+                    key={document.id}
+                    className={[
+                      "overflow-hidden rounded-2xl border bg-white transition-all duration-200 ease-out",
+                      openAccordion === `DOCUMENT:${document.id}`
+                        ? "border-[#03AEFE]/45 shadow-[0_6px_24px_rgba(3,174,254,0.10)]"
+                        : "border-admin-border hover:border-[#03AEFE]/40 hover:shadow-[0_4px_18px_rgba(3,174,254,0.06)]",
+                    ].join(" ")}
+                  >
+                    <button
+                      type="button"
+                      onClick={() =>
+                        toggleAccordion(`DOCUMENT:${document.id}`)
+                      }
+                      className={[
+                        "group flex w-full cursor-pointer items-start justify-between gap-3 border-b border-admin-border p-4 text-left transition-all duration-200 ease-out",
+                        openAccordion === `DOCUMENT:${document.id}`
+                          ? "bg-[#DFF4FF]"
+                          : "hover:bg-[#EAF7FF]",
+                      ].join(" ")}
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <div
+                          className={[
+                            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-200",
+                            openAccordion === `DOCUMENT:${document.id}`
+                              ? "bg-[#03AEFE] text-white shadow-sm"
+                              : "bg-admin-surface-soft text-admin-text-soft group-hover:bg-[#03AEFE] group-hover:text-white",
+                          ].join(" ")}
+                        >
+                          <FileText
+                            aria-hidden="true"
+                            size={17}
+                            strokeWidth={1.8}
+                          />
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="truncate text-sm font-bold text-admin-text">
+                              {document.name}
+                            </p>
+                          <ChevronDown
+                            aria-hidden="true"
+                            size={15}
+                            className={[
+                              "shrink-0 transition-all duration-200 ease-out",
+                              openAccordion === `DOCUMENT:${document.id}`
+                                ? "rotate-180 text-[#1B5BB6]"
+                                : "text-admin-text-muted group-hover:translate-y-0.5 group-hover:text-[#1B5BB6]",
+                            ].join(" ")}
+                          />
+                        </div>
+                          <p className="mt-1 text-xs text-admin-text-soft">
+                            {document.uploadedAt
+                              ? `Cargado ${formatDate(document.uploadedAt)}`
+                              : "Documento pendiente"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span
+                        className={[
+                          "inline-flex shrink-0 rounded-full px-3 py-1.5 text-xs font-bold",
+                          statusClasses,
+                        ].join(" ")}
+                      >
+                        {statusLabel}
+                      </span>
+                    </button>
+
+                    <div
+                      className={[
+                        "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
+                        openAccordion === `DOCUMENT:${document.id}`
+                          ? "grid-rows-[1fr] opacity-100"
+                          : "grid-rows-[0fr] opacity-0",
+                      ].join(" ")}
+                    >
+                      <div className="overflow-hidden">
+                        <div
+                          className={[
+                            "p-4 transition-transform duration-300 ease-out",
+                            openAccordion === `DOCUMENT:${document.id}`
+                              ? "translate-y-0"
+                              : "-translate-y-1.5",
+                          ].join(" ")}
+                        >
+                      <div className="flex min-h-[190px] items-center justify-center rounded-xl bg-admin-surface-soft">
+                        <div className="max-w-[220px] text-center">
+                          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[#1B5BB6] shadow-sm">
+                            <FileText
+                              aria-hidden="true"
+                              size={22}
+                              strokeWidth={1.6}
+                            />
+                          </div>
+                          <p className="mt-3 text-xs font-bold text-admin-text">
+                            Vista previa
+                          </p>
+                          <p className="mt-1 text-[11px] leading-4 text-admin-text-soft">
+                            Aquí se mostrará el archivo cargado por el cliente.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDocumentReview(
+                              document.id,
+                              "OBSERVED",
+                            )
+                          }
+                          className="h-9 flex-1 rounded-xl bg-red-50 px-3 text-xs font-bold text-red-600 transition-colors hover:bg-red-100"
+                        >
+                          Observar
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setDocumentReview(
+                              document.id,
+                              "APPROVED",
+                            )
+                          }
+                          className="h-9 flex-1 rounded-xl bg-emerald-50 px-3 text-xs font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
+                        >
+                          Aprobar
+                        </button>
+                      </div>
+
+                      {document.name
+                        .toLowerCase()
+                        .includes("autorización bic") ||
+                      document.name
+                        .toLowerCase()
+                        .includes("autorizacion bic") ? (
+                        <div className="mt-5 border-t border-admin-border pt-5">
+                          <div className="flex items-start gap-3">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF7FF] text-[#1B5BB6]">
+                              <FileCheck2
+                                aria-hidden="true"
+                                size={18}
+                                strokeWidth={1.8}
+                              />
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-admin-text">
+                                Reporte crediticio
+                              </p>
+
+                              <p className="mt-1 text-xs leading-5 text-admin-text-soft">
+                                Adjunta el reporte crediticio del cliente en formato PDF.
+                              </p>
+                            </div>
+                          </div>
+
+                          <label
+                            className={[
+                              "group mt-4 flex min-h-[135px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 text-center transition-all duration-200",
+                              creditReportFile
+                                ? "border-[#03AEFE]/40 bg-[#F2FAFF]"
+                                : "border-admin-border bg-admin-surface-soft hover:border-[#03AEFE]/50 hover:bg-[#EAF7FF]",
+                            ].join(" ")}
+                          >
+                            <div
+                              className={[
+                                "flex h-11 w-11 items-center justify-center rounded-xl transition-all duration-200",
+                                creditReportFile
+                                  ? "bg-[#03AEFE] text-white shadow-sm"
+                                  : "bg-white text-[#1B5BB6] shadow-sm group-hover:bg-[#03AEFE] group-hover:text-white",
+                              ].join(" ")}
+                            >
+                              <FileText
+                                aria-hidden="true"
+                                size={20}
+                                strokeWidth={1.7}
+                              />
+                            </div>
+
+                            <p className="mt-3 text-xs font-bold text-admin-text">
+                              {creditReportFile
+                                ? creditReportFile.name
+                                : "Subir reporte crediticio"}
+                            </p>
+
+                            <p className="mt-1 text-[11px] text-admin-text-soft">
+                              Archivo PDF
+                            </p>
+
+                            <input
+                              type="file"
+                              accept="application/pdf,.pdf"
+                              className="hidden"
+                              onChange={(event) => {
+                                const file =
+                                  event.target.files?.[0] ?? null;
+
+                                if (
+                                  file &&
+                                  file.type !== "application/pdf" &&
+                                  !file.name
+                                    .toLowerCase()
+                                    .endsWith(".pdf")
+                                ) {
+                                  event.target.value = "";
+                                  setCreditReportFile(null);
+                                  return;
+                                }
+
+                                setCreditReportFile(file);
+                              }}
+                            />
+                          </label>
+
+                          {creditReportFile ? (
+                            <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-3">
+                              <div className="flex min-w-0 items-center gap-3">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-emerald-700">
+                                  <FileCheck2
+                                    aria-hidden="true"
+                                    size={17}
+                                    strokeWidth={1.8}
+                                  />
+                                </div>
+
+                                <div className="min-w-0">
+                                  <p className="truncate text-xs font-bold text-emerald-700">
+                                    {creditReportFile.name}
+                                  </p>
+
+                                  <p className="mt-0.5 text-[10px] text-emerald-700/70">
+                                    {(
+                                      creditReportFile.size /
+                                      1024 /
+                                      1024
+                                    ).toFixed(2)}{" "}
+                                    MB · PDF cargado
+                                  </p>
+                                </div>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  setCreditReportFile(null);
+                                }}
+                                className="shrink-0 rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-red-600 transition-colors hover:bg-red-50"
+                              >
+                                Quitar
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                        </div>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        </div>
+
+        {/* ACCIÓN FINAL DE VALIDACIÓN */}
+        <section
+          className={[
+            "overflow-hidden rounded-2xl border transition-all duration-300",
+            applicationInReview
+              ? "border-emerald-200 bg-emerald-50/60"
+              : readyForReview
+                ? "border-[#03AEFE]/35 bg-[#F5FBFF] shadow-[0_8px_30px_rgba(3,174,254,0.08)]"
+                : "border-admin-border bg-white",
+          ].join(" ")}
+        >
+          <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-4">
+              <div
+                className={[
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-all duration-300",
+                  applicationInReview
+                    ? "bg-emerald-500 text-white"
+                    : readyForReview
+                      ? "bg-[#03AEFE] text-white shadow-sm"
+                      : "bg-admin-surface-soft text-admin-text-muted",
+                ].join(" ")}
+              >
+                {applicationInReview ? (
+                  <Check
+                    aria-hidden="true"
+                    size={20}
+                    strokeWidth={2.3}
+                  />
+                ) : (
+                  <ShieldCheck
+                    aria-hidden="true"
+                    size={20}
+                    strokeWidth={1.9}
+                  />
+                )}
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-sm font-bold text-admin-text">
+                    {applicationInReview
+                      ? "Solicitud enviada a revisión"
+                      : readyForReview
+                        ? "Expediente listo para evaluación"
+                        : "Completa la validación"}
+                  </h2>
+
+                  {!applicationInReview ? (
+                    <span
+                      className={[
+                        "inline-flex rounded-full px-2.5 py-1 text-[10px] font-bold",
+                        readyForReview
+                          ? "bg-[#DFF4FF] text-[#1B5BB6]"
+                          : "bg-admin-surface-soft text-admin-text-soft",
+                      ].join(" ")}
+                    >
+                      {approvedValidationItems} de{" "}
+                      {totalValidationItems}
+                    </span>
+                  ) : null}
+                </div>
+
+                <p className="mt-1 text-xs leading-5 text-admin-text-soft">
+                  {applicationInReview
+                    ? "El expediente ya forma parte del proceso de evaluación."
+                    : readyForReview
+                      ? "Todos los datos y documentos fueron validados. Ya puedes continuar con la evaluación."
+                      : `Faltan ${pendingValidationItems} ${
+                          pendingValidationItems === 1
+                            ? "elemento"
+                            : "elementos"
+                        } por validar antes de continuar.`}
+                </p>
+
+                {!applicationInReview ? (
+                  <div className="mt-3 flex items-center gap-3">
+                    <div className="h-1.5 w-full max-w-[280px] overflow-hidden rounded-full bg-admin-border">
+                      <div
+                        className={[
+                          "h-full rounded-full transition-all duration-500 ease-out",
+                          readyForReview
+                            ? "bg-[#03AEFE]"
+                            : "bg-[#1B5BB6]",
+                        ].join(" ")}
+                        style={{
+                          width: `${
+                            totalValidationItems > 0
+                              ? (approvedValidationItems /
+                                  totalValidationItems) *
+                                100
+                              : 0
+                          }%`,
+                        }}
                       />
                     </div>
 
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-admin-text">
-                        {document.name}
-                      </p>
-
-                      <p className="mt-0.5 text-xs text-admin-text-muted">
-                        {document.uploadedAt
-                          ? `Cargado ${formatDate(
-                              document.uploadedAt,
-                            )}`
-                          : "Documento pendiente"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex shrink-0 items-center gap-3">
-                    <span
-                      className={[
-                        "inline-flex rounded-full px-3 py-1.5 text-xs font-bold",
-                        statusClasses,
-                      ].join(" ")}
-                    >
-                      {statusLabel}
+                    <span className="shrink-0 text-[11px] font-bold text-admin-text-soft">
+                      {approvedValidationItems}/
+                      {totalValidationItems}
                     </span>
-
-                    <ChevronRight
-                      aria-hidden="true"
-                      size={16}
-                      className="text-admin-text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-primary-dark"
-                    />
                   </div>
-                </button>
-              );
-            })}
+                ) : null}
+              </div>
+            </div>
+
+            {!applicationInReview ? (
+              <button
+                type="button"
+                disabled={!readyForReview}
+                onClick={() =>
+                  setApplicationInReview(true)
+                }
+                className={[
+                  "group inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl px-5 text-xs font-bold transition-all duration-200",
+                  readyForReview
+                    ? "bg-black text-white shadow-sm hover:-translate-y-0.5 hover:bg-[#1B5BB6] hover:shadow-md active:translate-y-0"
+                    : "cursor-not-allowed bg-admin-surface-soft text-admin-text-muted",
+                ].join(" ")}
+              >
+                <ShieldCheck
+                  aria-hidden="true"
+                  size={16}
+                  strokeWidth={1.9}
+                />
+
+                Pasar a revisión
+
+                <ChevronRight
+                  aria-hidden="true"
+                  size={15}
+                  className={
+                    readyForReview
+                      ? "transition-transform duration-200 group-hover:translate-x-0.5"
+                      : ""
+                  }
+                />
+              </button>
+            ) : (
+              <div className="inline-flex h-11 shrink-0 items-center gap-2 rounded-xl bg-white px-4 text-xs font-bold text-emerald-700 shadow-sm">
+                <Check
+                  aria-hidden="true"
+                  size={15}
+                  strokeWidth={2.3}
+                />
+
+                En revisión
+              </div>
+            )}
           </div>
         </section>
 
-        {selectedDocument ? (
-          <Modal
-            open
-            title={selectedDocument.name}
-            description={`Revisión del documento de ${application.applicant.fullName}.`}
-            size="lg"
-            onClose={() => setSelectedDocumentId(null)}
-            footer={
-              <div className="flex w-full justify-end">
-                <button
-                  type="button"
-                  onClick={() =>
-                    setSelectedDocumentId(null)
-                  }
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-black px-5 text-sm font-bold text-white transition-colors hover:bg-black/80"
-                >
-                  Cerrar
-                </button>
-              </div>
-            }
-          >
-            <div className="grid lg:grid-cols-[1.35fr_0.65fr]">
-              <div className="border-b border-admin-border p-5 sm:p-6 lg:border-b-0 lg:border-r">
-                <div className="flex min-h-[430px] items-center justify-center rounded-2xl bg-admin-surface-soft">
-                  <div className="max-w-xs text-center">
-                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-primary-dark shadow-sm">
-                      <FileText
-                        aria-hidden="true"
-                        size={30}
-                        strokeWidth={1.5}
-                      />
-                    </div>
-
-                    <p className="mt-4 text-sm font-bold text-admin-text">
-                      Vista previa del documento
-                    </p>
-
-                    <p className="mt-1 text-xs leading-5 text-admin-text-soft">
-                      Aquí se mostrará el archivo original cargado por el cliente.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="p-5 sm:p-6">
-                <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-admin-text-muted">
-                  Información
-                </p>
-
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <p className="text-xs text-admin-text-muted">
-                      Documento
-                    </p>
-
-                    <p className="mt-1 text-sm font-bold text-admin-text">
-                      {selectedDocument.name}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-admin-text-muted">
-                      Estado actual
-                    </p>
-
-                    <p className="mt-1 text-sm font-bold text-admin-text">
-                      {DOCUMENT_STATUS_LABELS[
-                        selectedDocument.status
-                      ]}
-                    </p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs text-admin-text-muted">
-                      Fecha de carga
-                    </p>
-
-                    <p className="mt-1 text-sm font-bold text-admin-text">
-                      {formatDate(
-                        selectedDocument.uploadedAt,
-                      )}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-6 border-t border-admin-border pt-5">
-                  <p className="text-xs font-bold text-admin-text">
-                    Validación
-                  </p>
-
-                  <div className="mt-3 space-y-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setDocumentReview(
-                          selectedDocument.id,
-                          "OBSERVED",
-                        )
-                      }
-                      className="flex h-11 w-full items-center gap-3 rounded-xl bg-red-50 px-4 text-sm font-bold text-red-600 transition-colors hover:bg-red-100"
-                    >
-                      <AlertTriangle
-                        aria-hidden="true"
-                        size={17}
-                      />
-
-                      Observado
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setDocumentReview(
-                          selectedDocument.id,
-                          "VALIDATE",
-                        )
-                      }
-                      className="flex h-11 w-full items-center gap-3 rounded-xl bg-amber-50 px-4 text-sm font-bold text-amber-700 transition-colors hover:bg-amber-100"
-                    >
-                      <ShieldCheck
-                        aria-hidden="true"
-                        size={17}
-                      />
-
-                      Validar
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setDocumentReview(
-                          selectedDocument.id,
-                          "APPROVED",
-                        )
-                      }
-                      className="flex h-11 w-full items-center gap-3 rounded-xl bg-emerald-50 px-4 text-sm font-bold text-emerald-700 transition-colors hover:bg-emerald-100"
-                    >
-                      <Check
-                        aria-hidden="true"
-                        size={17}
-                        strokeWidth={2.2}
-                      />
-
-                      Aprobado
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </Modal>
-        ) : null}
-
-        {/* VALIDACIONES */}
-        <div className="grid gap-5 xl:grid-cols-2">
-          <Section
-            title="Validación SEGIP"
-            reviewStatus={reviews.SEGIP}
-            onReviewChange={(status) =>
-              handleReviewChange("SEGIP", status)
-            }
-            description="Verificación de identidad del cliente."
-            icon={ShieldCheck}
-          >
-            <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-              <InfoItem
-                label="Estado"
-                value={
-                  SEGIP_STATUS_LABELS[
-                    application.segip.status
-                  ]
-                }
-              />
-
-              <InfoItem
-                label="Fecha de consulta"
-                value={formatDate(
-                  application.segip.checkedAt,
-                )}
-              />
-
-              <InfoItem
-                label="Número de CI"
-                value={
-                  application.segip.identityNumberMatches ===
-                  null
-                    ? "Pendiente"
-                    : application.segip.identityNumberMatches
-                      ? "Coincide"
-                      : "No coincide"
-                }
-              />
-
-              <InfoItem
-                label="Nombre completo"
-                value={
-                  application.segip.fullNameMatches === null
-                    ? "Pendiente"
-                    : application.segip.fullNameMatches
-                      ? "Coincide"
-                      : "No coincide"
-                }
-              />
-            </div>
-
-            {application.segip.differences.length > 0 ? (
-              <div className="mt-5 rounded-xl bg-error-bg p-4">
-                <div className="flex gap-2">
-                  <AlertTriangle
-                    aria-hidden="true"
-                    size={16}
-                    className="mt-0.5 shrink-0 text-error"
-                  />
-
-                  <div>
-                    <p className="text-xs font-bold text-error">
-                      Diferencias encontradas
-                    </p>
-
-                    {application.segip.differences.map(
-                      (difference) => (
-                        <p
-                          key={difference}
-                          className="mt-1 text-xs text-error"
-                        >
-                          {difference}
-                        </p>
-                      ),
-                    )}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </Section>
-
-          <Section
-            title="Scoring"
-            reviewStatus={reviews.SCORING}
-            onReviewChange={(status) =>
-              handleReviewChange("SCORING", status)
-            }
-            description="Evaluación del perfil crediticio."
-            icon={Landmark}
-          >
-            <div className="grid gap-x-6 gap-y-5 sm:grid-cols-2">
-              <InfoItem
-                label="Estado"
-                value={
-                  SCORING_STATUS_LABELS[
-                    application.scoring.status
-                  ]
-                }
-              />
-
-              <InfoItem
-                label="Score"
-                value={
-                  application.scoring.score ?? "Pendiente"
-                }
-              />
-
-              <InfoItem
-                label="Autorización BIC"
-                value={
-                  application.scoring.authorizedForBureau
-                    ? "Autorizada"
-                    : "Pendiente"
-                }
-              />
-
-              <InfoItem
-                label="Identidad validada"
-                value={
-                  application.scoring.identityValidated
-                    ? "Sí"
-                    : "Pendiente"
-                }
-              />
-
-              <InfoItem
-                label="PDF INFOCRED"
-                value={
-                  application.scoring.pdfFileName ??
-                  "Pendiente de carga"
-                }
-              />
-
-              <InfoItem
-                label="Resultado"
-                value={
-                  application.scoring.result === "APPROVE"
-                    ? "Aprobar"
-                    : application.scoring.result === "REVIEW"
-                      ? "Revisar"
-                      : application.scoring.result === "REJECT"
-                        ? "Rechazar"
-                        : "Pendiente"
-                }
-              />
-            </div>
-
-            {application.scoring.reasons.length > 0 ? (
-              <div className="mt-5 border-t border-admin-border pt-5">
-                <p className="text-xs font-bold text-admin-text">
-                  Observaciones del scoring
-                </p>
-
-                <div className="mt-2 space-y-2">
-                  {application.scoring.reasons.map((reason) => (
-                    <div
-                      key={reason}
-                      className="flex items-start gap-2 text-xs text-admin-text-soft"
-                    >
-                      <ChevronRight
-                        aria-hidden="true"
-                        size={14}
-                        className="mt-0.5 shrink-0"
-                      />
-
-                      {reason}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-          </Section>
-        </div>
-
-        {applicationInReview &&
-        !applicationApproved &&
-        !assignedAdvisor ? (
+        {applicationInReview ? (
           <>
             {!reviewWorkspaceOpen ? (
               <button
@@ -1914,7 +1807,7 @@ export default function ApplicationDetailView({
               >
                 <div className="flex items-center justify-between border-b border-admin-border px-5 py-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-blue text-primary-dark">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-surface-blue text-[#1B5BB6]">
                       <NotebookPen
                         aria-hidden="true"
                         size={18}
@@ -1938,7 +1831,7 @@ export default function ApplicationDetailView({
                     onClick={() =>
                       setReviewWorkspaceOpen(false)
                     }
-                    className="flex h-9 w-9 items-center justify-center rounded-xl text-admin-text-soft transition-colors hover:bg-admin-surface-soft hover:text-admin-text"
+                    className="flex h-9 w-9 items-center justify-center rounded-xl text-admin-text-soft transition-colors hover:bg-[#EAF7FF] hover:text-admin-text"
                   >
                     <X
                       aria-hidden="true"
@@ -1957,7 +1850,7 @@ export default function ApplicationDetailView({
                       "flex h-10 items-center justify-center gap-2 rounded-xl text-xs font-bold transition-colors",
                       reviewWorkspaceTab === "NOTES"
                         ? "bg-black text-white"
-                        : "text-admin-text-soft hover:bg-admin-surface-soft",
+                        : "text-admin-text-soft hover:bg-[#EAF7FF]",
                     ].join(" ")}
                   >
                     <NotebookPen
@@ -1986,7 +1879,7 @@ export default function ApplicationDetailView({
                       reviewWorkspaceTab ===
                       "REMINDERS"
                         ? "bg-black text-white"
-                        : "text-admin-text-soft hover:bg-admin-surface-soft",
+                        : "text-admin-text-soft hover:bg-[#EAF7FF]",
                     ].join(" ")}
                   >
                     <Bell
@@ -2275,116 +2168,6 @@ export default function ApplicationDetailView({
           />
         </div>
 
-        {assignModalOpen ? (
-          <Modal
-            open
-            title="Asignar asesor"
-            description={`Selecciona el asesor que continuará con la solicitud de ${application.applicant.fullName}.`}
-            size="sm"
-            onClose={() => setAssignModalOpen(false)}
-            footer={
-              <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setAssignModalOpen(false)}
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-admin-border bg-white px-5 text-sm font-bold text-admin-text"
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="button"
-                  disabled={!selectedAdvisorId}
-                  onClick={handleAssignAdvisor}
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-black px-5 text-sm font-bold text-white transition-colors hover:bg-primary-dark disabled:cursor-not-allowed disabled:opacity-40"
-                >
-                  Asignar asesor
-                </button>
-              </div>
-            }
-          >
-            <div className="p-5 sm:p-6">
-              <p className="text-xs font-semibold text-admin-text-soft">
-                Asesores disponibles
-              </p>
-
-              <div className="mt-3 space-y-2">
-                {ADVISORS.map((advisor) => {
-                  const selected =
-                    selectedAdvisorId === advisor.id;
-
-                  return (
-                    <button
-                      key={advisor.id}
-                      type="button"
-                      onClick={() =>
-                        setSelectedAdvisorId(advisor.id)
-                      }
-                      className={[
-                        "flex w-full items-center justify-between gap-4 rounded-xl border p-4 text-left transition-colors",
-                        selected
-                          ? "border-primary bg-surface-blue"
-                          : "border-admin-border bg-white hover:bg-admin-surface-soft",
-                      ].join(" ")}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={[
-                            "flex h-10 w-10 items-center justify-center rounded-full text-xs font-bold",
-                            selected
-                              ? "bg-primary text-white"
-                              : "bg-admin-surface-soft text-admin-text",
-                          ].join(" ")}
-                        >
-                          {advisor.name
-                            .split(" ")
-                            .slice(0, 2)
-                            .map((part) => part.charAt(0))
-                            .join("")}
-                        </div>
-
-                        <div>
-                          <p className="text-sm font-bold text-admin-text">
-                            {advisor.name}
-                          </p>
-
-                          <p className="mt-0.5 text-xs text-admin-text-soft">
-                            Asesor de préstamos
-                          </p>
-                        </div>
-                      </div>
-
-                      <div
-                        className={[
-                          "flex h-5 w-5 items-center justify-center rounded-full border",
-                          selected
-                            ? "border-primary bg-primary"
-                            : "border-admin-border bg-white",
-                        ].join(" ")}
-                      >
-                        {selected ? (
-                          <Check
-                            aria-hidden="true"
-                            size={12}
-                            strokeWidth={2.5}
-                            className="text-white"
-                          />
-                        ) : null}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              <div className="mt-4 rounded-xl bg-admin-surface-soft px-4 py-3">
-                <p className="text-xs leading-5 text-admin-text-soft">
-                  El asesor seleccionado quedará a cargo de continuar la gestión de esta solicitud.
-                </p>
-              </div>
-            </div>
-          </Modal>
-        ) : null}
-
         {observationModalOpen && observedSection ? (
           <Modal
             open
@@ -2397,7 +2180,7 @@ export default function ApplicationDetailView({
                 <button
                   type="button"
                   onClick={() => setObservationModalOpen(false)}
-                  className="inline-flex h-11 items-center justify-center rounded-xl border border-admin-border bg-white px-5 text-sm font-bold text-admin-text transition-colors hover:bg-admin-surface-soft"
+                  className="inline-flex h-11 items-center justify-center rounded-xl border border-admin-border bg-white px-5 text-sm font-bold text-admin-text transition-colors hover:bg-[#EAF7FF]"
                 >
                   Cancelar
                 </button>
@@ -2480,7 +2263,7 @@ export default function ApplicationDetailView({
                       "flex h-12 items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-colors",
                       contactChannel === "WHATSAPP"
                         ? "border-[#25D366] bg-[#EAFBF0] text-[#168C43]"
-                        : "border-admin-border bg-white text-admin-text-soft hover:bg-admin-surface-soft",
+                        : "border-admin-border bg-white text-admin-text-soft hover:bg-[#EAF7FF]",
                     ].join(" ")}
                   >
                     <MessageCircle
@@ -2501,7 +2284,7 @@ export default function ApplicationDetailView({
                       "flex h-12 items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-colors",
                       contactChannel === "EMAIL"
                         ? "border-black bg-black text-white"
-                        : "border-admin-border bg-white text-admin-text-soft hover:bg-admin-surface-soft",
+                        : "border-admin-border bg-white text-admin-text-soft hover:bg-[#EAF7FF]",
                     ].join(" ")}
                   >
                     <Mail
@@ -2521,8 +2304,8 @@ export default function ApplicationDetailView({
                     className={[
                       "flex h-12 items-center justify-center gap-2 rounded-xl border text-sm font-bold transition-colors",
                       contactChannel === "BOTH"
-                        ? "border-primary bg-surface-blue text-primary-dark"
-                        : "border-admin-border bg-white text-admin-text-soft hover:bg-admin-surface-soft",
+                        ? "border-primary bg-surface-blue text-[#1B5BB6]"
+                        : "border-admin-border bg-white text-admin-text-soft hover:bg-[#EAF7FF]",
                     ].join(" ")}
                   >
                     <MessageCircle

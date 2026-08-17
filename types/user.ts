@@ -1,4 +1,8 @@
-export type UserRole = "SUPER_ADMIN" | "ASSIGNED_ADVISOR";
+export type UserRole =
+  | "SUPER_ADMIN"
+  | "GESTOR_PRESTAMOS"
+  | "ASESOR_PRESTAMOS"
+  | "JEFE_CARTERA";
 
 export type UserStatus =
   | "ACTIVE"
@@ -30,8 +34,10 @@ export type UserFormValues = {
 };
 
 export const USER_ROLE_LABELS: Record<UserRole, string> = {
-  SUPER_ADMIN: "Super Administrador",
-  ASSIGNED_ADVISOR: "Asesor Asignado",
+  SUPER_ADMIN: "Administrador",
+  GESTOR_PRESTAMOS: "Gestor de préstamos",
+  ASESOR_PRESTAMOS: "Asesor de préstamos",
+  JEFE_CARTERA: "Jefe de cartera",
 };
 
 export const USER_STATUS_LABELS: Record<UserStatus, string> = {

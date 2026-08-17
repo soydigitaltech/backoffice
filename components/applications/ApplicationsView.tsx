@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Clock3,
   MapPin,
-  Radio,
   UserRound,
 } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -248,121 +247,7 @@ function formatCurrency(value: number) {
   }).format(value);
 }
 
-function formatRelativeTime(value: string) {
-  const date = new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
-    return "Sin actividad";
-  }
-
-  const now = new Date();
-
-  const differenceInMinutes = Math.max(
-    0,
-    Math.floor((now.getTime() - date.getTime()) / 60000),
-  );
-
-  if (differenceInMinutes < 1) {
-    return "Ahora";
-  }
-
-  if (differenceInMinutes < 60) {
-    return `Hace ${differenceInMinutes} min`;
-  }
-
-  const hours = Math.floor(differenceInMinutes / 60);
-
-  if (hours < 24) {
-    return `Hace ${hours} h`;
-  }
-
-  const days = Math.floor(hours / 24);
-
-  return `Hace ${days} día${days === 1 ? "" : "s"}`;
-}
-
-function createMockApplication(
-  base: Application,
-  options: {
-    id: string;
-    code: string;
-    firstName: string;
-    lastName: string;
-    identityNumber: string;
-    city: string;
-    currentStep:
-      | "PERSONAL_DATA"
-      | "EMPLOYMENT"
-      | "FINANCIAL_INFORMATION"
-      | "LOAN_SIMULATION"
-      | "DOCUMENTS";
-    completedStepCodes: string[];
-    progress: number;
-    nextAction: string;
-  },
-): Application {
-  return {
-    ...base,
-    id: options.id,
-    code: options.code,
-    applicant: {
-      ...base.applicant,
-      firstName: options.firstName,
-      lastName: options.lastName,
-      fullName: `${options.firstName} ${options.lastName}`,
-      identityNumber: options.identityNumber,
-      city: options.city,
-    },
-    progress: options.progress,
-    nextAction: options.nextAction,
-    onboarding: {
-      ...base.onboarding,
-      currentStep: options.currentStep,
-      currentStepLabel:
-        base.onboarding.steps.find(
-          (step) => step.code === options.currentStep,
-        )?.label ?? "Onboarding",
-      progress: options.progress,
-      responsible: "CLIENT",
-      state: "WAITING_CLIENT",
-      steps: base.onboarding.steps.map((step) => {
-        const completed =
-          options.completedStepCodes.includes(step.code);
-
-        const current = step.code === options.currentStep;
-
-        if (completed) {
-          return {
-            ...step,
-            status: "COMPLETED",
-            progress: 100,
-            responsible: "NONE",
-          };
-        }
-
-        if (current) {
-          return {
-            ...step,
-            status: "IN_PROGRESS",
-            progress: 0,
-            responsible: "CLIENT",
-          };
-        }
-
-        return {
-          ...step,
-          status: "NOT_STARTED",
-          progress: 0,
-          responsible: "NONE",
-          completedFields: [],
-          pendingFields: [],
-          lastCompletedField: null,
-          completedAt: null,
-        };
-      }),
-    },
-  };
-}
 
 function ApplicationAccordionCard({
   application,
@@ -709,25 +594,6 @@ export default function ApplicationsView() {
     }));
   };
 
-  const approveActivity = (activityId: string) => {
-    setActivityStatus((current) => ({
-      ...current,
-      [activityId]: "APPROVED",
-    }));
-
-    setActivityMessages((current) => ({
-      ...current,
-      [activityId]: [
-        ...(current[activityId] ?? []),
-        {
-          id: `${activityId}-approval-${Date.now()}`,
-          author: "ADVISOR",
-          text: "Revisado. Todo está correcto, doy mi visto bueno.",
-        },
-      ],
-    }));
-  };
-
   const closeActivity = (activityId: string) => {
     setActivityStatus((current) => ({
       ...current,
@@ -983,25 +849,6 @@ export default function ApplicationsView() {
                 ASSIGNED_APPLICATIONS[
                   advisor.id as keyof typeof ASSIGNED_APPLICATIONS
                 ] ?? [];
-
-              /*
-               * Mock visual del flujo del asesor.
-               * Luego lo reemplazaremos por solicitudes reales
-               * relacionadas mediante advisor.id.
-               */
-              const advisorApplications =
-                applications.filter(
-                  (application) =>
-                    application.assignedAdvisorName ===
-                    advisor.name,
-                );
-
-              const flowApplications =
-                advisorApplications.length > 0
-                  ? advisorApplications
-                  : index === 0
-                    ? applications.slice(0, 1)
-                    : [];
 
               return (
                 <article

@@ -19,19 +19,19 @@ const EMPTY_VALUES: UserFormValues = {
   lastName: "",
   email: "",
   phone: "",
-  role: "ASSIGNED_ADVISOR",
+  role: "ASESOR_PRESTAMOS",
   status: "PENDING",
 };
 
 const roleOptions = [
   {
     value: "SUPER_ADMIN",
-    label: "Super Administrador",
+    label: "Administrador",
     description: "Acceso completo al backoffice y gestión de usuarios.",
   },
   {
-    value: "ASSIGNED_ADVISOR",
-    label: "Asesor Asignado",
+    value: "ASESOR_PRESTAMOS",
+    label: "Asesor de préstamos",
     description: "Gestiona las solicitudes que le sean asignadas.",
   },
 ];

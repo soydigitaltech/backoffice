@@ -11,9 +11,9 @@ export type CurrentUser = {
 
 export const CURRENT_USER: CurrentUser = {
   id: "usr-jhoseline",
-  firstName: "Judith",
-  lastName: "Blanco",
+  firstName: "Jhoseline",
+  lastName: "Apaza",
   fullName: "Jhoseline Apaza",
   email: "jhoseline.apaza@gencorpbo.com",
-  role: "ASSIGNED_ADVISOR",
+  role: "GESTOR_PRESTAMOS",
 };

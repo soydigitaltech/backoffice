@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 
-import ApplicationDetailView from "@/components/applications/ApplicationDetailView";
+import ApplicationDetailRoleView from "@/components/applications/ApplicationDetailRoleView";
+import { ADVISOR_APPLICATIONS } from "@/mocks/advisor-applications";
 import { INITIAL_APPLICATIONS } from "@/mocks/applications";
 
 type ApplicationDetailPageProps = {
@@ -14,13 +15,18 @@ export default async function ApplicationDetailPage({
 }: ApplicationDetailPageProps) {
   const { id } = await params;
 
-  const application = INITIAL_APPLICATIONS.find(
-    (item) => item.id === id,
-  );
+  const application = [
+    ...INITIAL_APPLICATIONS,
+    ...ADVISOR_APPLICATIONS,
+  ].find((item) => item.id === id);
 
   if (!application) {
     notFound();
   }
 
-  return <ApplicationDetailView application={application} />;
+  return (
+    <ApplicationDetailRoleView
+      application={application}
+    />
+  );
 }
