@@ -1,5 +1,7 @@
 "use client";
 
+import IdentityDocumentCarousel from "@/components/applications/IdentityDocumentCarousel";
+
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -600,6 +602,14 @@ export default function ApplicationDetailView({
   const [reviews, setReviews] =
     useState<ReviewState>({});
 
+  const [identityViewerOpen, setIdentityViewerOpen] =
+    useState(false);
+
+  const [
+    identityViewerDocumentId,
+    setIdentityViewerDocumentId,
+  ] = useState<string | null>(null);
+
   const [documentReviews, setDocumentReviews] =
     useState<Record<
       string,
@@ -609,6 +619,18 @@ const [creditReportFile, setCreditReportFile] =
     useState<File | null>(null);
 
 
+
+  const identityDocuments =
+    application.documents.filter((document) =>
+      ["ID_FRONT", "ID_BACK", "SELFIE"].includes(
+        document.type,
+      ),
+    );
+
+  const openIdentityViewer = (documentId: string) => {
+    setIdentityViewerDocumentId(documentId);
+    setIdentityViewerOpen(true);
+  };
 
   const setDocumentReview = (
     documentId: string,
@@ -1408,23 +1430,72 @@ const [creditReportFile, setCreditReportFile] =
                               : "-translate-y-1.5",
                           ].join(" ")}
                         >
-                      <div className="flex min-h-[190px] items-center justify-center rounded-xl bg-admin-surface-soft">
-                        <div className="max-w-[220px] text-center">
-                          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[#1B5BB6] shadow-sm">
-                            <FileText
-                              aria-hidden="true"
-                              size={22}
-                              strokeWidth={1.6}
+                      {document.fileUrl ? (
+                        document.mimeType === "application/pdf" ? (
+                          <div className="overflow-hidden rounded-xl bg-admin-surface-soft">
+                            <iframe
+                              src={document.fileUrl}
+                              title={document.name}
+                              className="h-[420px] w-full border-0"
                             />
                           </div>
-                          <p className="mt-3 text-xs font-bold text-admin-text">
-                            Vista previa
-                          </p>
-                          <p className="mt-1 text-[11px] leading-4 text-admin-text-soft">
-                            Aquí se mostrará el archivo cargado por el cliente.
-                          </p>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (
+                                ["ID_FRONT", "ID_BACK", "SELFIE"].includes(
+                                  document.type,
+                                )
+                              ) {
+                                openIdentityViewer(document.id);
+                              }
+                            }}
+                            className={[
+                              "group relative block w-full overflow-hidden rounded-xl bg-admin-surface-soft",
+                              ["ID_FRONT", "ID_BACK", "SELFIE"].includes(
+                                document.type,
+                              )
+                                ? "cursor-zoom-in"
+                                : "cursor-default",
+                            ].join(" ")}
+                          >
+                            <img
+                              src={document.fileUrl}
+                              alt={document.name}
+                              className="h-[240px] w-full object-contain transition-transform duration-200 group-hover:scale-[1.01]"
+                            />
+
+                            {["ID_FRONT", "ID_BACK", "SELFIE"].includes(
+                              document.type,
+                            ) ? (
+                              <span className="absolute bottom-3 right-3 rounded-lg bg-black px-3 py-2 text-[11px] font-bold text-white">
+                                Ver en grande
+                              </span>
+                            ) : null}
+                          </button>
+                        )
+                      ) : (
+                        <div className="flex min-h-[190px] items-center justify-center rounded-xl bg-admin-surface-soft">
+                          <div className="max-w-[220px] text-center">
+                            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-white text-[#1B5BB6]">
+                              <FileText
+                                aria-hidden="true"
+                                size={22}
+                                strokeWidth={1.6}
+                              />
+                            </div>
+
+                            <p className="mt-3 text-xs font-bold text-admin-text">
+                              Documento pendiente
+                            </p>
+
+                            <p className="mt-1 text-[11px] leading-4 text-admin-text-soft">
+                              El cliente todavía no cargó este archivo.
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="mt-4 flex gap-2">
                         <button
@@ -1481,13 +1552,28 @@ const [creditReportFile, setCreditReportFile] =
                             </div>
                           </div>
 
+                          <div className="mt-4 overflow-hidden rounded-xl bg-admin-surface-soft">
+                            <iframe
+                              src={
+                                creditReportFile
+                                  ? URL.createObjectURL(creditReportFile)
+                                  : "/reporte-crediticio-demo.pdf"
+                              }
+                              title="Reporte crediticio"
+                              className="h-[420px] w-full border-0"
+                            />
+                          </div>
+
+                          <div className="mt-4 overflow-hidden rounded-xl border border-admin-border bg-white">
+                            <iframe
+                              src="/reporte-crediticio-demo.pdf"
+                              title="Reporte crediticio"
+                              className="h-[420px] w-full border-0"
+                            />
+                          </div>
+
                           <label
-                            className={[
-                              "group mt-4 flex min-h-[135px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed px-4 text-center transition-all duration-200",
-                              creditReportFile
-                                ? "border-[#03AEFE]/40 bg-[#F2FAFF]"
-                                : "border-admin-border bg-admin-surface-soft hover:border-[#03AEFE]/50 hover:bg-[#EAF7FF]",
-                            ].join(" ")}
+                            className="group mt-3 flex min-h-11 cursor-pointer items-center justify-center rounded-xl border border-admin-border bg-white px-4 text-center transition-colors hover:bg-admin-surface-soft"
                           >
                             <div
                               className={[
@@ -1504,14 +1590,10 @@ const [creditReportFile, setCreditReportFile] =
                               />
                             </div>
 
-                            <p className="mt-3 text-xs font-bold text-admin-text">
+                            <p className="text-xs font-bold text-admin-text">
                               {creditReportFile
-                                ? creditReportFile.name
-                                : "Subir reporte crediticio"}
-                            </p>
-
-                            <p className="mt-1 text-[11px] text-admin-text-soft">
-                              Archivo PDF
+                                ? "Cambiar reporte crediticio"
+                                : "Reemplazar reporte crediticio"}
                             </p>
 
                             <input
@@ -2381,6 +2463,22 @@ const [creditReportFile, setCreditReportFile] =
         ) : null}
 
       </div>
-    </BackofficeLayout>
+          <IdentityDocumentCarousel
+        open={identityViewerOpen}
+        documents={identityDocuments}
+        selectedDocumentId={identityViewerDocumentId}
+        reviews={documentReviews}
+        applicantName={application.applicant.fullName}
+        onClose={() => {
+          setIdentityViewerOpen(false);
+          setIdentityViewerDocumentId(null);
+        }}
+        onSelect={setIdentityViewerDocumentId}
+        onReview={(documentId, status) => {
+          setDocumentReview(documentId, status);
+        }}
+      />
+
+</BackofficeLayout>
   );
 }

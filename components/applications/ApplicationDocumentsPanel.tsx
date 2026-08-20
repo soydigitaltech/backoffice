@@ -157,6 +157,94 @@ function formatDate(value: string | null | undefined) {
     .replace(/[\u00A0\u202F]/g, " ");
 }
 
+function DocumentPreview({
+  document,
+  compact = false,
+}: {
+  document: ApplicationDocument;
+  compact?: boolean;
+}) {
+  if (
+    document.status === "MISSING" ||
+    !document.fileUrl
+  ) {
+    return (
+      <div
+        className={[
+          "flex items-center justify-center rounded-xl border border-dashed border-admin-border bg-admin-surface-soft",
+          compact ? "h-40" : "min-h-[460px]",
+        ].join(" ")}
+      >
+        <div className="px-5 text-center">
+          <FileText
+            aria-hidden="true"
+            size={compact ? 24 : 32}
+            strokeWidth={1.6}
+            className="mx-auto text-admin-text-muted"
+          />
+
+          <p className="mt-3 text-xs font-semibold text-admin-text-soft">
+            Documento pendiente
+          </p>
+
+          <p className="mt-1 text-[10px] text-admin-text-muted">
+            El cliente todavía no cargó este archivo
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (document.mimeType?.startsWith("image/")) {
+    return (
+      <div
+        className={[
+          "overflow-hidden rounded-xl bg-admin-surface-soft",
+          compact ? "h-44" : "min-h-[460px]",
+        ].join(" ")}
+      >
+        <img
+          src={document.fileUrl}
+          alt={document.name}
+          className={[
+            "h-full w-full",
+            document.type === "SELFIE"
+              ? "object-cover"
+              : "object-contain",
+          ].join(" ")}
+        />
+      </div>
+    );
+  }
+
+  if (document.mimeType === "application/pdf") {
+    return (
+      <div
+        className={[
+          "overflow-hidden rounded-xl bg-admin-surface-soft",
+          compact ? "h-44" : "h-[600px]",
+        ].join(" ")}
+      >
+        <iframe
+          src={document.fileUrl}
+          title={document.name}
+          className="h-full w-full border-0"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex min-h-[300px] items-center justify-center rounded-xl bg-admin-surface-soft">
+      <FileText
+        aria-hidden="true"
+        size={30}
+        className="text-admin-text-muted"
+      />
+    </div>
+  );
+}
+
 export default function ApplicationDocumentsPanel({
   applicationId,
   initialDocuments,
@@ -394,97 +482,90 @@ export default function ApplicationDocumentsPanel({
           return (
             <article
               key={document.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => setSelectedDocument(document)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
+              role={document.status !== "MISSING" ? "button" : undefined}
+              tabIndex={document.status !== "MISSING" ? 0 : -1}
+              onClick={() => {
+                if (document.status !== "MISSING") {
                   setSelectedDocument(document);
                 }
               }}
-              className="group cursor-pointer rounded-2xl border border-admin-border bg-white p-5 transition-all hover:border-primary/30 hover:shadow-sm"
+              onKeyDown={(event) => {
+                if (
+                  document.status !== "MISSING" &&
+                  (event.key === "Enter" || event.key === " ")
+                ) {
+                  setSelectedDocument(document);
+                }
+              }}
+              className={[
+                "overflow-hidden rounded-2xl border bg-white transition-colors",
+                document.status === "MISSING"
+                  ? "cursor-default border-admin-border"
+                  : "cursor-pointer border-admin-border hover:border-primary/50",
+              ].join(" ")}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-3">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-admin-surface-soft text-primary-dark">
-                    <DocumentIcon
-                      aria-hidden="true"
-                      size={20}
-                      strokeWidth={1.8}
-                    />
-                  </div>
+              <div className="p-3">
+                <DocumentPreview
+                  document={document}
+                  compact
+                />
+              </div>
 
+              <div className="border-t border-admin-border px-4 py-4">
+                <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate text-sm font-bold text-admin-text">
                       {document.name}
                     </h3>
 
-                    <p className="mt-1 text-xs text-admin-text-soft">
-                      Versión {document.version}
+                    <p className="mt-1 text-[11px] leading-4 text-admin-text-soft">
+                      {document.status === "MISSING"
+                        ? "El cliente todavía no cargó este documento"
+                        : `Cargado ${formatDate(document.uploadedAt)}`}
                     </p>
                   </div>
-                </div>
 
-                <span
-                  className={[
-                    "inline-flex shrink-0 rounded-full px-3 py-1 text-[11px] font-bold",
-                    statusClasses[document.status],
-                  ].join(" ")}
-                >
-                  {DOCUMENT_STATUS_LABELS[document.status]}
-                </span>
-              </div>
-
-              <div className="mt-5 space-y-2 text-xs">
-                <div className="flex justify-between gap-4">
-                  <span className="text-admin-text-muted">
-                    Cargado por
+                  <span
+                    className={[
+                      "inline-flex shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold",
+                      statusClasses[document.status],
+                    ].join(" ")}
+                  >
+                    {DOCUMENT_STATUS_LABELS[document.status]}
                   </span>
-
-                  <strong className="text-right text-admin-text">
-                    {document.uploadedBy ?? "No cargado"}
-                  </strong>
                 </div>
 
-                <div className="flex justify-between gap-4">
-                  <span className="text-admin-text-muted">
-                    Fecha de carga
-                  </span>
+                {document.observation ? (
+                  <div className="mt-3 rounded-xl bg-warning-bg px-3 py-2.5">
+                    <div className="flex items-start gap-2">
+                      <MessageSquareWarning
+                        aria-hidden="true"
+                        size={14}
+                        strokeWidth={1.8}
+                        className="mt-0.5 shrink-0 text-warning"
+                      />
 
-                  <strong className="text-right text-admin-text">
-                    {formatDate(document.uploadedAt)}
-                  </strong>
-                </div>
-              </div>
+                      <p className="text-[11px] font-semibold leading-4 text-warning">
+                        {document.observation}
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
 
-              {document.observation ? (
-                <div className="mt-4 rounded-xl bg-warning-bg px-4 py-3">
-                  <div className="flex items-start gap-2">
-                    <MessageSquareWarning
+                {document.status !== "MISSING" ? (
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-xs font-semibold text-primary-dark">
+                      Previsualizar
+                    </span>
+
+                    <Eye
                       aria-hidden="true"
                       size={16}
                       strokeWidth={1.8}
-                      className="mt-0.5 shrink-0 text-warning"
+                      className="text-primary-dark"
                     />
-
-                    <p className="text-xs font-semibold leading-5 text-warning">
-                      {document.observation}
-                    </p>
                   </div>
-                </div>
-              ) : null}
-
-              <div className="mt-5 flex items-center justify-between border-t border-admin-border pt-4">
-                <span className="text-xs font-semibold text-admin-text-soft">
-                  Ver documento
-                </span>
-
-                <Eye
-                  aria-hidden="true"
-                  size={17}
-                  strokeWidth={1.8}
-                  className="text-admin-text-muted transition-colors group-hover:text-primary-dark"
-                />
+                ) : null}
               </div>
             </article>
           );
@@ -536,25 +617,7 @@ export default function ApplicationDocumentsPanel({
           <div className="grid lg:grid-cols-[1.35fr_0.65fr]">
             {/* Vista del documento */}
             <div className="border-b border-admin-border p-5 sm:p-6 lg:border-b-0 lg:border-r">
-              <div className="flex min-h-[420px] items-center justify-center rounded-2xl bg-admin-surface-soft">
-                <div className="max-w-xs text-center">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-primary-dark shadow-sm">
-                    <FileText
-                      aria-hidden="true"
-                      size={30}
-                      strokeWidth={1.5}
-                    />
-                  </div>
-
-                  <p className="mt-4 text-sm font-bold text-admin-text">
-                    Vista previa del documento
-                  </p>
-
-                  <p className="mt-1 text-xs leading-5 text-admin-text-soft">
-                    Aquí se mostrará el archivo original cargado por el cliente cuando conectemos el backend.
-                  </p>
-                </div>
-              </div>
+              <DocumentPreview document={selectedDocument} />
             </div>
 
             {/* Panel de revisión */}

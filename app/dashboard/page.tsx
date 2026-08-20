@@ -1,99 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   ArrowRight,
-  BriefcaseBusiness,
   Check,
-  ChevronDown,
-  Clock3,
-  MapPin,
+  ChevronRight,
   Columns3,
-  GripVertical,
   LayoutList,
+  MapPin,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
-import ApplicationStatusBadge from "@/components/applications/ApplicationStatusBadge";
-import OnboardingTimeline from "@/components/applications/OnboardingTimeline";
+import LoanAdvisorDashboard from "@/components/advisor/LoanAdvisorDashboard";
 import BackofficeLayout from "@/components/layout/BackofficeLayout";
 import NotificationSummaryModal from "@/components/notifications/NotificationSummaryModal";
-import LoanAdvisorDashboard from "@/components/advisor/LoanAdvisorDashboard";
 import { useAuth } from "@/hooks/useAuth";
 import { INITIAL_APPLICATIONS } from "@/mocks/applications";
 import type { Application } from "@/types/application";
 
-
 type DashboardView = "LIST" | "FLOW";
-type DashboardGroup = "FOLLOW_UP" | "PRE_APPROVED";
-type FollowUpFilter = "ALL" | "IN_PROGRESS" | "COMPLETED";
 
-type GlobalApplicationStatus =
-  | "NEW"
-  | "REVIEW"
-  | "APPROVED"
-  | "ASSIGNED";
+type WorkStage =
+  | "FOLLOW_UP"
+  | "READY_REVIEW"
+  | "EVALUATION";
 
-type BoardState = Record<
-  GlobalApplicationStatus,
-  string[]
->;
-
-const BOARD_COLUMNS: {
-  id: GlobalApplicationStatus;
-  group: DashboardGroup;
-  label: string;
-  description: string;
-  headerClass: string;
-  countClass: string;
-}[] = [
-  {
-    id: "NEW",
-    group: "FOLLOW_UP",
-    label: "Nuevas",
-    description: "Ingresaron al tablero",
-    headerClass: "bg-surface-blue",
-    countClass: "bg-primary text-white",
-  },
-  {
-    id: "REVIEW",
-    group: "FOLLOW_UP",
-    label: "En revisión",
-    description: "Gestión de Clientes",
-    headerClass: "bg-[#FFF7EB]",
-    countClass: "bg-[#FE9806] text-white",
-  },
-  {
-    id: "APPROVED",
-    group: "PRE_APPROVED",
-    label: "Pre aprobados",
-    description: "Listos para continuar la gestión",
-    headerClass: "bg-[#F0FBF7]",
-    countClass: "bg-[#16855E] text-white",
-  },
-  {
-    id: "ASSIGNED",
-    group: "PRE_APPROVED",
-    label: "Asignadas",
-    description: "Con asesor responsable",
-    headerClass: "bg-[#F8F1FF]",
-    countClass: "bg-[#9003FD] text-white",
-  },
-];
-
-function formatCurrency(value: number) {
-  if (value <= 0) {
-    return "Pendiente";
-  }
-
-  return new Intl.NumberFormat("es-BO", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
+const ONBOARDING_TOTAL_STEPS = 6;
 
 function createMockApplication(
   base: Application,
@@ -178,8 +111,6 @@ function createMockApplication(
   };
 }
 
-const ONBOARDING_TOTAL_STEPS = 6;
-
 function getCompletedSteps(application: Application) {
   return application.onboarding.steps.filter(
     (step) => step.status === "COMPLETED",
@@ -193,285 +124,308 @@ function hasCompletedOnboarding(application: Application) {
   );
 }
 
-function ApplicationAccordionCard({
-  application,
-  open,
-  onToggle,
-}: {
-  application: Application;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  const completedSteps = getCompletedSteps(application);
-  const onboardingCompleted = hasCompletedOnboarding(application);
+function getWorkStage(application: Application): WorkStage {
+  if (
+    application.status === "PREAPPROVED" ||
+    application.status === "COMPLEMENTARY_DOCUMENTATION" ||
+    application.status === "FORMALIZATION"
+  ) {
+    return "EVALUATION";
+  }
 
-  const initials = `${application.applicant.firstName.charAt(
-    0,
-  )}${application.applicant.lastName.charAt(0)}`.toUpperCase();
+  if (hasCompletedOnboarding(application)) {
+    return "READY_REVIEW";
+  }
+
+  return "FOLLOW_UP";
+}
+
+function getStageLabel(stage: WorkStage) {
+  switch (stage) {
+    case "FOLLOW_UP":
+      return "En seguimiento";
+    case "READY_REVIEW":
+      return "Listo para revisar";
+    case "EVALUATION":
+      return "En evaluación";
+  }
+}
+
+function getStageDescription(stage: WorkStage) {
+  switch (stage) {
+    case "FOLLOW_UP":
+      return "Esperando al cliente";
+    case "READY_REVIEW":
+      return "Requiere tu atención";
+    case "EVALUATION":
+      return "Expediente enviado";
+  }
+}
+
+function getStageClasses(stage: WorkStage) {
+  switch (stage) {
+    case "FOLLOW_UP":
+      return "bg-[#EAF7FF] text-[#1B5BB6]";
+    case "READY_REVIEW":
+      return "bg-[#FFF4E5] text-[#B76000]";
+    case "EVALUATION":
+      return "bg-[#ECF8F3] text-[#167454]";
+  }
+}
+
+function ProgressDots({
+  completed,
+}: {
+  completed: number;
+}) {
+  const currentIndex =
+    completed >= ONBOARDING_TOTAL_STEPS ? -1 : completed;
 
   return (
-    <article
-      className={[
-        "overflow-hidden rounded-2xl border bg-white transition-all duration-200 ease-out",
-        open
-          ? "border-[#03AEFE]/45 shadow-[0_6px_24px_rgba(3,174,254,0.10)]"
-          : "border-admin-border hover:border-[#03AEFE]/40 hover:shadow-[0_4px_18px_rgba(3,174,254,0.06)]",
-      ].join(" ")}
-    >
-      <button
-        type="button"
-        onClick={onToggle}
-        className={[
-          "group flex w-full cursor-pointer items-center gap-4 p-5 text-left transition-all duration-200 ease-out sm:p-6",
-          open
-            ? "bg-[#DFF4FF]"
-            : "hover:bg-[#EAF7FF]",
-        ].join(" ")}
-      >
-        <div
-          className={[
-            "flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold transition-all duration-200 ease-out",
-            open
-              ? "bg-[#03AEFE] text-white shadow-sm"
-              : "bg-surface-blue text-primary-dark group-hover:bg-[#03AEFE] group-hover:text-white",
-          ].join(" ")}
-        >
-          {initials}
-        </div>
+    <div className="flex items-center">
+      {Array.from({ length: ONBOARDING_TOTAL_STEPS }).map(
+        (_, index) => {
+          const isCompleted = index < completed;
+          const isCurrent = index === currentIndex;
+          const isLast =
+            index === ONBOARDING_TOTAL_STEPS - 1;
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-base font-bold text-admin-text">
-              {application.applicant.fullName}
-            </h3>
-
-            <ApplicationStatusBadge
-              status={application.status}
-              compact
-            />
-
-            {onboardingCompleted ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#EAF8F2] px-2.5 py-1 text-[10px] font-bold text-[#16855E]">
-                <Check aria-hidden="true" size={12} />
-                Onboarding completado
-              </span>
-            ) : null}
-          </div>
-
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-admin-text-soft">
-            <span>{application.code}</span>
-            <span>•</span>
-            <span>CI {application.applicant.identityNumber}</span>
-            <span>•</span>
-
-            <span className="inline-flex items-center gap-1">
-              <MapPin
-                aria-hidden="true"
-                size={13}
-              />
-              {application.applicant.city}
-            </span>
-          </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-3">
-            <span className="text-xs font-semibold text-primary-dark">
-              {application.onboarding.currentStepLabel}
-            </span>
-
-            <span className="text-xs text-admin-text-muted">
-              {application.onboarding.progress}% completado
-            </span>
-          </div>
-        </div>
-
-        <div className="hidden items-center gap-3 sm:flex">
-          <ChevronDown
-            aria-hidden="true"
-            size={20}
-            className={[
-              "transition-all duration-200 ease-out",
-              open
-                ? "rotate-180 text-[#1B5BB6]"
-                : "text-admin-text-muted group-hover:translate-y-0.5 group-hover:text-[#1B5BB6]",
-            ].join(" ")}
-          />
-        </div>
-      </button>
-
-      <div
-        className={[
-          "grid transition-[grid-template-rows,opacity] duration-300 ease-out",
-          open
-            ? "grid-rows-[1fr] opacity-100"
-            : "grid-rows-[0fr] opacity-0",
-        ].join(" ")}
-      >
-        <div className="overflow-hidden">
-          <div className="border-t border-admin-border">
+          return (
             <div
-              className={[
-                "p-5 transition-transform duration-300 ease-out sm:p-6",
-                open ? "translate-y-0" : "-translate-y-1.5",
-              ].join(" ")}
+              key={index}
+              className="flex items-center"
             >
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-xl bg-surface-blue/35 px-4 py-3.5">
-                <p className="text-[11px] font-medium text-admin-text-soft">
-                  Monto solicitado
-                </p>
-
-                <p className="mt-1 text-[15px] font-semibold text-admin-text">
-                  {formatCurrency(
-                    application.loan.requestedAmount,
-                  )}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-[#F0FBF7] px-4 py-3.5">
-                <p className="text-[11px] font-medium text-admin-text-soft">
-                  Ingreso mensual
-                </p>
-
-                <p className="mt-1 text-[15px] font-semibold text-admin-text">
-                  {formatCurrency(
-                    application.employment.monthlyNetIncome,
-                  )}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-[#FFF7EB] px-4 py-3.5">
-                <p className="text-[11px] font-medium text-admin-text-soft">
-                  Actividad
-                </p>
-
-                <div className="mt-1 flex items-center gap-2">
-                  <BriefcaseBusiness
-                    aria-hidden="true"
-                    size={15}
-                    className="text-[#FE9806]"
-                  />
-
-                  <p className="text-sm font-semibold text-admin-text">
-                    {application.employment.companyOrActivity
-                      ? application.employment.activityType ===
-                        "SALARIED"
-                        ? "Asalariado"
-                        : "Independiente"
-                      : "Pendiente"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-xl bg-[#F8F1FF] px-4 py-3.5">
-                <p className="text-[11px] font-medium text-admin-text-soft">
-                  Avance
-                </p>
-
-                <div className="mt-1 flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-admin-text">
-                    {Math.min(completedSteps, ONBOARDING_TOTAL_STEPS)}/
-                    {ONBOARDING_TOTAL_STEPS} pasos
-                  </p>
-
-                  <span className="text-sm font-bold text-[#9003FD]">
-                    {application.onboarding.progress}%
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 border-t border-admin-border pt-5">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-admin-text">
-                    Proceso del onboarding
-                  </p>
-
-                  <p className="mt-1 text-xs text-admin-text-soft">
-                    Etapa actual:{" "}
-                    <span className="font-bold text-primary-dark">
-                      {application.onboarding.currentStepLabel}
-                    </span>
-                  </p>
-                </div>
-
-                <div className="inline-flex items-center gap-2 text-xs font-semibold text-admin-text-soft">
-                  <Clock3
-                    aria-hidden="true"
-                    size={14}
-                  />
-
-                  {application.onboarding.progress}% completado
-                </div>
-              </div>
-
-              <div className="mt-5 overflow-x-auto pb-2">
-                <OnboardingTimeline
-                  steps={application.onboarding.steps}
-                  compact
-                />
-              </div>
-
-              <div className="mt-4 flex items-center gap-3">
-                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-admin-border">
-                  <div
-                    className="h-full rounded-full bg-primary"
-                    style={{
-                      width: `${application.onboarding.progress}%`,
-                    }}
-                  />
-                </div>
-
-                <span className="text-xs font-bold text-primary-dark">
-                  {application.onboarding.progress}%
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-4 border-t border-admin-border bg-admin-surface-soft px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-            <div className="flex items-start gap-3">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning-bg text-warning">
-                {application.alerts.length > 0 ? (
-                  <AlertTriangle
-                    aria-hidden="true"
-                    size={17}
-                  />
-                ) : (
+              <span
+                aria-hidden="true"
+                className={[
+                  "flex h-8 w-8 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-colors",
+                  isCompleted || isCurrent
+                    ? "border-primary bg-black text-white"
+                    : "border-[#C9D1DD] bg-white text-[#9AA3B2]",
+                ].join(" ")}
+              >
+                {isCompleted ? (
                   <Check
                     aria-hidden="true"
-                    size={17}
+                    size={14}
+                    strokeWidth={2.4}
                   />
+                ) : (
+                  <span>{index + 1}</span>
                 )}
-              </div>
+              </span>
+
+              {!isLast ? (
+                <span
+                  aria-hidden="true"
+                  className="h-[2px] w-6 bg-[#D7DEE8]"
+                />
+              ) : null}
+            </div>
+          );
+        },
+      )}
+    </div>
+  );
+}
+
+function WorkSummaryButton({
+  active,
+  count,
+  label,
+  onClick,
+}: {
+  active: boolean;
+  count: number;
+  label: string;
+  onClick: () => void;
+  emphasis?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        "group flex h-12 items-center gap-3 rounded-xl px-4 text-left transition-colors",
+        active
+          ? "bg-primary text-white"
+          : "text-admin-text hover:bg-primary hover:text-white",
+      ].join(" ")}
+    >
+      <span className="whitespace-nowrap text-sm font-semibold">
+        {label}
+      </span>
+
+      <span
+        className={[
+          "inline-flex h-6 min-w-6 items-center justify-center rounded-lg px-1.5 text-[11px] font-bold transition-colors",
+          active
+            ? "bg-white/20 text-white"
+            : "bg-admin-surface-soft text-admin-text group-hover:bg-white/20 group-hover:text-white",
+        ].join(" ")}
+      >
+        {count}
+      </span>
+    </button>
+  );
+}
+
+function ClientApplicationCard({
+  application,
+}: {
+  application: Application;
+}) {
+  const completedSteps = Math.min(
+    getCompletedSteps(application),
+    ONBOARDING_TOTAL_STEPS,
+  );
+
+  const stage = getWorkStage(application);
+  const onboardingCompleted =
+    stage !== "FOLLOW_UP";
+
+  return (
+    <article className="overflow-hidden rounded-2xl border border-admin-border bg-white transition-[border-color,background-color] duration-150 ease-out hover:border-primary hover:bg-[#F3FAFE]">
+      <div className="p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h3 className="text-base font-bold tracking-[-0.01em] text-admin-text">
+                {application.applicant.fullName}
+              </h3>
+            </div>
+
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-xs text-admin-text-soft">
+              <span>
+                CI {application.applicant.identityNumber}
+              </span>
+
+              <span
+                aria-hidden="true"
+                className="text-admin-border"
+              >
+                •
+              </span>
+
+              <span className="inline-flex items-center gap-1">
+                <MapPin
+                  aria-hidden="true"
+                  size={13}
+                  strokeWidth={1.8}
+                />
+                {application.applicant.city}
+              </span>
+
+              <span
+                aria-hidden="true"
+                className="text-admin-border"
+              >
+                •
+              </span>
+
+              <span>{application.code}</span>
+            </div>
+
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
 
               <div>
-                <p className="text-xs font-medium text-admin-text-soft">
-                  Próxima acción
-                </p>
+                <div className="flex items-center gap-3">
+                  <ProgressDots
+                    completed={completedSteps}
+                  />
 
-                <p className="mt-1 text-sm font-bold text-admin-text">
-                  {application.nextAction}
+                  <span className="text-xs font-semibold text-admin-text-soft">
+                    {completedSteps} de {ONBOARDING_TOTAL_STEPS}
+                  </span>
+                </div>
+
+                <p className="mt-1.5 text-[11px] text-admin-text-muted">
+                  {onboardingCompleted
+                    ? "Todos los pasos fueron completados"
+                    : `${application.onboarding.progress}% del proceso`}
                 </p>
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="lg:w-[320px]">
+            <div
+              className={[
+                "rounded-xl border p-4",
+                stage === "EVALUATION"
+                  ? "border-[#CDE9DE] bg-[#F7FCFA]"
+                  : "border-primary bg-primary text-white hover:border-primary-dark hover:bg-primary-dark",
+              ].join(" ")}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className={[
+                    "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg",
+                    stage === "READY_REVIEW"
+                      ? "bg-white/20 text-white"
+                      : stage === "EVALUATION"
+                        ? "bg-[#E4F5EE] text-[#167454]"
+                        : "bg-white/20 text-white",
+                  ].join(" ")}
+                >
+                  {stage !== "EVALUATION" ? (
+                    <AlertTriangle
+                      aria-hidden="true"
+                      size={15}
+                      strokeWidth={1.8}
+                    />
+                  ) : (
+                    <Check
+                      aria-hidden="true"
+                      size={15}
+                      strokeWidth={2}
+                    />
+                  )}
+                </div>
 
+                <div className="min-w-0">
+                  <p
+                    className={[
+                      "text-[11px] font-medium",
+                      stage === "EVALUATION"
+                        ? "text-admin-text-muted"
+                        : "text-white/75",
+                    ].join(" ")}
+                  >
+                    {getStageDescription(stage)}
+                  </p>
 
-              <Link
-                href={`/solicitudes/${application.id}`}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-ink px-5 text-sm font-bold leading-none text-white transition-colors hover:bg-primary-dark"
-              >
-                Ver solicitud
-
-                <ArrowRight
-                  aria-hidden="true"
-                  size={16}
-                />
-              </Link>
+                  <p
+                    className={[
+                      "mt-1 text-sm font-semibold leading-5",
+                      "text-white",
+                    ].join(" ")}
+                  >
+                    {application.nextAction}
+                  </p>
+                </div>
+              </div>
             </div>
-            </div>
+
+            <Link
+              href={`/solicitudes/${application.id}`}
+              className={[
+                "mt-3 inline-flex h-11 w-full items-center justify-between rounded-xl px-4 text-sm font-bold transition-colors",
+                "bg-ink text-white hover:bg-primary-dark active:scale-[0.99]",
+              ].join(" ")}
+            >
+              <span>
+                {stage === "READY_REVIEW"
+                  ? "Revisar solicitud"
+                  : "Ver cliente"}
+              </span>
+
+              <ArrowRight
+                aria-hidden="true"
+                size={16}
+                strokeWidth={1.8}
+              />
+            </Link>
           </div>
         </div>
       </div>
@@ -479,451 +433,101 @@ function ApplicationAccordionCard({
   );
 }
 
-function ApplicationsFlowBoard({
+function FlowColumn({
+  title,
+  description,
   applications,
-  group,
-  followUpFilter,
+  stage,
 }: {
+  title: string;
+  description: string;
   applications: Application[];
-  group: DashboardGroup;
-  followUpFilter: FollowUpFilter;
+  stage: WorkStage;
 }) {
-  const router = useRouter();
-
-  const [draggedApplicationId, setDraggedApplicationId] =
-    useState<string | null>(null);
-
-  const filteredApplications = applications.filter(
-    (application) => {
-      if (group !== "FOLLOW_UP") {
-        return true;
-      }
-
-      if (followUpFilter === "COMPLETED") {
-        return hasCompletedOnboarding(application);
-      }
-
-      if (followUpFilter === "IN_PROGRESS") {
-        return !hasCompletedOnboarding(application);
-      }
-
-      return true;
-    },
-  );
-
-  const [board, setBoard] = useState<BoardState>(() => {
-    const ids = filteredApplications.map(
-      (application) => application.id,
-    );
-
-    if (
-      group === "FOLLOW_UP" &&
-      followUpFilter === "COMPLETED"
-    ) {
-      return {
-        NEW: ids,
-        REVIEW: [],
-        APPROVED: [],
-        ASSIGNED: [],
-      };
-    }
-
-    if (group === "PRE_APPROVED") {
-      return {
-        NEW: [],
-        REVIEW: [],
-        APPROVED: ids.slice(0, Math.ceil(ids.length / 2)),
-        ASSIGNED: ids.slice(Math.ceil(ids.length / 2)),
-      };
-    }
-
-    return {
-      NEW: ids.filter((_, index) => index % 2 === 0),
-      REVIEW: ids.filter((_, index) => index % 2 !== 0),
-      APPROVED: [],
-      ASSIGNED: [],
-    };
-  });
-
-  const getApplication = (id: string) =>
-    filteredApplications.find(
-      (application) => application.id === id,
-    );
-
-  const moveApplication = (
-    applicationId: string,
-    targetStatus: GlobalApplicationStatus,
-  ) => {
-    setBoard((current) => {
-      const next: BoardState = {
-        NEW: current.NEW.filter(
-          (id) => id !== applicationId,
-        ),
-        REVIEW: current.REVIEW.filter(
-          (id) => id !== applicationId,
-        ),
-        APPROVED: current.APPROVED.filter(
-          (id) => id !== applicationId,
-        ),
-        ASSIGNED: current.ASSIGNED.filter(
-          (id) => id !== applicationId,
-        ),
-      };
-
-      next[targetStatus] = [
-        ...next[targetStatus],
-        applicationId,
-      ];
-
-      return next;
-    });
-  };
-
-  const visibleColumns =
-    group === "FOLLOW_UP"
-      ? [
-          {
-            id: "NEW" as const,
-            label:
-              followUpFilter === "COMPLETED"
-                ? "Onboarding completado"
-                : "En seguimiento",
-            description:
-              followUpFilter === "COMPLETED"
-                ? "Clientes que completaron los 6 pasos"
-                : "Clientes avanzando en el onboarding",
-            headerClass: "bg-surface-blue",
-            countClass:
-              "bg-[#03AEFE] text-white",
-          },
-          {
-            id: "REVIEW" as const,
-            label:
-              followUpFilter === "COMPLETED"
-                ? "Listos para evaluación"
-                : "Requieren atención",
-            description:
-              followUpFilter === "COMPLETED"
-                ? "Solicitudes listas para continuar"
-                : "Casos que necesitan seguimiento",
-            headerClass: "bg-[#FFF7EB]",
-            countClass:
-              "bg-[#FE9806] text-white",
-          },
-        ]
-      : BOARD_COLUMNS.filter(
-          (column) => column.group === group,
-        );
-
   return (
-    <section className="overflow-x-auto pb-3">
-      <div className="grid min-w-[900px] grid-cols-2 gap-4">
-        {visibleColumns.map((column) => {
-          const columnApplications =
-            board[column.id]
-              .map((id) => getApplication(id))
-              .filter(
-                (
-                  application,
-                ): application is Application =>
-                  Boolean(application),
-              );
+    <section className="min-w-[300px] flex-1 rounded-2xl border border-admin-border bg-[#F9FAFB] p-3">
+      <div className="flex items-start justify-between gap-3 px-2 py-2">
+        <div>
+          <h3 className="text-sm font-bold text-admin-text">
+            {title}
+          </h3>
+
+          <p className="mt-1 text-[11px] leading-4 text-admin-text-soft">
+            {description}
+          </p>
+        </div>
+
+        <span
+          className={[
+            "inline-flex h-7 min-w-7 items-center justify-center rounded-lg px-2 text-xs font-bold",
+            getStageClasses(stage),
+          ].join(" ")}
+        >
+          {applications.length}
+        </span>
+      </div>
+
+      <div className="mt-2 space-y-2.5">
+        {applications.map((application) => {
+          const completedSteps = Math.min(
+            getCompletedSteps(application),
+            ONBOARDING_TOTAL_STEPS,
+          );
 
           return (
-            <div
-              key={column.id}
-              onDragOver={(event) => {
-                event.preventDefault();
-                event.dataTransfer.dropEffect = "move";
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-
-                const applicationId =
-                  event.dataTransfer.getData(
-                    "text/application-id",
-                  );
-
-                if (!applicationId) {
-                  return;
-                }
-
-                moveApplication(
-                  applicationId,
-                  column.id,
-                );
-
-                setDraggedApplicationId(null);
-              }}
-              className="min-h-[560px] rounded-2xl border border-admin-border bg-admin-page/40 p-3"
+            <Link
+              key={application.id}
+              href={`/solicitudes/${application.id}`}
+              className="block rounded-xl border border-admin-border bg-white p-4 transition-colors hover:border-primary/40"
             >
-              <div
-                className={[
-                  "rounded-2xl p-4",
-                  column.headerClass,
-                ].join(" ")}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-bold text-admin-text">
-                      {column.label}
-                    </p>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-bold text-admin-text">
+                    {application.applicant.fullName}
+                  </p>
 
-                    <p className="mt-1 text-[11px] text-admin-text-soft">
-                      {column.description}
-                    </p>
-                  </div>
-
-                  <span
-                    className={[
-                      "inline-flex h-7 min-w-7 items-center justify-center rounded-lg px-2 text-xs font-bold",
-                      column.countClass,
-                    ].join(" ")}
-                  >
-                    {columnApplications.length}
-                  </span>
+                  <p className="mt-1 text-[11px] text-admin-text-soft">
+                    CI {application.applicant.identityNumber}
+                  </p>
                 </div>
+
+                <ChevronRight
+                  aria-hidden="true"
+                  size={16}
+                  className="shrink-0 text-admin-text-muted"
+                />
               </div>
 
-              <div className="mt-3 space-y-3">
-                {columnApplications.map(
-                  (application) => {
-                    const initials =
-                      `${application.applicant.firstName.charAt(
-                        0,
-                      )}${application.applicant.lastName.charAt(
-                        0,
-                      )}`.toUpperCase();
+              <div className="mt-4">
+                <p className="text-[10px] font-medium text-admin-text-muted">
+                  {stage === "FOLLOW_UP"
+                    ? application.onboarding.currentStepLabel
+                    : getStageDescription(stage)}
+                </p>
 
-                    const completedSteps =
-                      getCompletedSteps(application);
-
-                    return (
-                      <article
-                        key={application.id}
-                        draggable
-                        onDragStart={(event) => {
-                          setDraggedApplicationId(
-                            application.id,
-                          );
-
-                          event.dataTransfer.setData(
-                            "text/application-id",
-                            application.id,
-                          );
-
-                          event.dataTransfer.effectAllowed =
-                            "move";
-                        }}
-                        onDragEnd={() =>
-                          setDraggedApplicationId(null)
-                        }
-                        className={[
-                          "group overflow-hidden rounded-2xl border border-admin-border bg-white transition-all duration-200",
-                          "hover:border-[#03AEFE]/40 hover:shadow-[0_10px_30px_rgba(3,174,254,0.08)]",
-                          draggedApplicationId ===
-                          application.id
-                            ? "scale-[0.98] opacity-40"
-                            : "",
-                        ].join(" ")}
-                      >
-                        <div className="p-4">
-                          <div className="flex items-start gap-3">
-                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-surface-blue text-xs font-bold text-primary-dark transition-colors group-hover:bg-[#03AEFE] group-hover:text-white">
-                              {initials}
-                            </div>
-
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-bold text-admin-text">
-                                    {
-                                      application.applicant
-                                        .fullName
-                                    }
-                                  </p>
-
-                                  <p className="mt-1 text-[11px] text-admin-text-soft">
-                                    {application.code}
-                                  </p>
-                                </div>
-
-                                <GripVertical
-                                  aria-hidden="true"
-                                  size={17}
-                                  className="shrink-0 cursor-grab text-admin-text-muted active:cursor-grabbing"
-                                />
-                              </div>
-
-                              <div className="mt-2">
-                                <ApplicationStatusBadge
-                                  status={application.status}
-                                  compact
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-admin-text-soft">
-                            <span>
-                              CI{" "}
-                              {
-                                application.applicant
-                                  .identityNumber
-                              }
-                            </span>
-
-                            <span>•</span>
-
-                            <span className="inline-flex items-center gap-1">
-                              <MapPin
-                                aria-hidden="true"
-                                size={12}
-                              />
-                              {
-                                application.applicant
-                                  .city
-                              }
-                            </span>
-                          </div>
-
-                          <div className="mt-4 grid grid-cols-2 gap-2">
-                            <div className="rounded-xl bg-surface-blue/40 px-3 py-3">
-                              <p className="text-[10px] text-admin-text-soft">
-                                Monto solicitado
-                              </p>
-
-                              <p className="mt-1 text-sm font-bold text-admin-text">
-                                {formatCurrency(
-                                  application.loan
-                                    .requestedAmount,
-                                )}
-                              </p>
-                            </div>
-
-                            <div className="rounded-xl bg-[#F0FBF7] px-3 py-3">
-                              <p className="text-[10px] text-admin-text-soft">
-                                Ingreso mensual
-                              </p>
-
-                              <p className="mt-1 text-sm font-bold text-admin-text">
-                                {formatCurrency(
-                                  application.employment
-                                    .monthlyNetIncome,
-                                )}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="mt-4 rounded-xl bg-admin-surface-soft p-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="text-[10px] font-medium text-admin-text-muted">
-                                  Etapa actual
-                                </p>
-
-                                <p className="mt-1 text-xs font-bold text-admin-text">
-                                  {
-                                    application.onboarding
-                                      .currentStepLabel
-                                  }
-                                </p>
-                              </div>
-
-                              <span className="text-sm font-bold text-primary-dark">
-                                {
-                                  application.onboarding
-                                    .progress
-                                }
-                                %
-                              </span>
-                            </div>
-
-                            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-admin-border">
-                              <div
-                                className="h-full rounded-full bg-[#03AEFE] transition-all duration-300"
-                                style={{
-                                  width: `${application.onboarding.progress}%`,
-                                }}
-                              />
-                            </div>
-
-                            <p className="mt-2 text-[10px] text-admin-text-muted">
-                              {Math.min(
-                                completedSteps,
-                                ONBOARDING_TOTAL_STEPS,
-                              )}
-                              /{ONBOARDING_TOTAL_STEPS} pasos
-                            </p>
-                          </div>
-
-                          <div className="mt-4 border-t border-admin-border pt-3">
-                            <p className="text-[10px] font-medium uppercase tracking-[0.06em] text-admin-text-muted">
-                              Próxima acción
-                            </p>
-
-                            <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-admin-text">
-                              {application.nextAction}
-                            </p>
-                          </div>
-
-                          {application.alerts.length > 0 ? (
-                            <div className="mt-3 flex items-start gap-2 rounded-xl bg-warning-bg px-3 py-2.5">
-                              <AlertTriangle
-                                aria-hidden="true"
-                                size={14}
-                                className="mt-0.5 shrink-0 text-warning"
-                              />
-
-                              <p className="line-clamp-2 text-[11px] leading-4 text-warning">
-                                {
-                                  application.alerts[0]
-                                }
-                              </p>
-                            </div>
-                          ) : null}
-                        </div>
-
-                        <div className="border-t border-admin-border bg-admin-surface-soft p-3">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              router.push(
-                                `/solicitudes/${application.id}`,
-                              )
-                            }
-                            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-xl bg-ink text-xs font-bold text-white transition-all hover:bg-primary-dark"
-                          >
-                            Abrir expediente
-
-                            <ArrowRight
-                              aria-hidden="true"
-                              size={14}
-                            />
-                          </button>
-                        </div>
-                      </article>
-                    );
-                  },
-                )}
-
-                {columnApplications.length === 0 ? (
-                  <div className="flex min-h-[150px] items-center justify-center rounded-2xl border border-dashed border-admin-border bg-white/50 p-5 text-center">
-                    <div>
-                      <p className="text-xs font-semibold text-admin-text-soft">
-                        Sin solicitudes
-                      </p>
-
-                      <p className="mt-1 text-[11px] text-admin-text-muted">
-                        Arrastra una solicitud aquí
-                      </p>
-                    </div>
-                  </div>
-                ) : null}
+                <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-admin-text">
+                  {application.nextAction}
+                </p>
               </div>
-            </div>
+
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <ProgressDots completed={completedSteps} />
+
+                <span className="text-[11px] font-semibold text-admin-text-soft">
+                  {completedSteps}/{ONBOARDING_TOTAL_STEPS}
+                </span>
+              </div>
+            </Link>
           );
         })}
+
+        {applications.length === 0 ? (
+          <div className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-admin-border bg-white p-5 text-center">
+            <p className="text-xs text-admin-text-muted">
+              No hay clientes en esta etapa.
+            </p>
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -938,22 +542,8 @@ export default function DashboardPage() {
   const [dashboardView, setDashboardView] =
     useState<DashboardView>("LIST");
 
-  const [dashboardGroup, setDashboardGroup] =
-    useState<DashboardGroup>("FOLLOW_UP");
-
-  const [followUpFilter, setFollowUpFilter] =
-    useState<FollowUpFilter>("ALL");
-
-  const [openApplicationId, setOpenApplicationId] =
-    useState<string | null>(null);
-
-  const toggleApplication = (applicationId: string) => {
-    setOpenApplicationId((current) =>
-      current === applicationId
-        ? null
-        : applicationId,
-    );
-  };
+  const [activeStage, setActiveStage] =
+    useState<WorkStage>("FOLLOW_UP");
 
   useEffect(() => {
     if (user?.id !== "usr-jhoseline") {
@@ -1037,7 +627,7 @@ export default function DashboardPage() {
           "FINANCIAL_INFORMATION",
         ],
         progress: 30,
-        nextAction: "Realizar simulación del préstamo",
+        nextAction: "Elegir las condiciones del préstamo",
       }),
 
       createMockApplication(baseApplication, {
@@ -1048,11 +638,13 @@ export default function DashboardPage() {
         identityNumber: "7214589",
         city: "El Alto",
         currentStep: "DOCUMENTS",
-        completedStepCodes: baseApplication.onboarding.steps.map(
-          (step) => step.code,
-        ),
+        completedStepCodes:
+          baseApplication.onboarding.steps.map(
+            (step) => step.code,
+          ),
         progress: 100,
-        nextAction: "Revisar para pre aprobación",
+        nextAction:
+          "Revisar datos y documentos para continuar",
       }),
 
       createMockApplication(baseApplication, {
@@ -1063,52 +655,16 @@ export default function DashboardPage() {
         identityNumber: "7482365",
         city: "La Paz",
         currentStep: "DOCUMENTS",
-        completedStepCodes: baseApplication.onboarding.steps.map(
-          (step) => step.code,
-        ),
+        completedStepCodes:
+          baseApplication.onboarding.steps.map(
+            (step) => step.code,
+          ),
         progress: 100,
-        nextAction: "Revisar para pre aprobación",
+        nextAction:
+          "Revisar datos y documentos para continuar",
       }),
     ];
   }, [baseApplication]);
-
-  const followUpApplications = applications.filter(
-    (application) =>
-      application.status !== "PREAPPROVED" &&
-      application.status !== "COMPLEMENTARY_DOCUMENTATION" &&
-      application.status !== "FORMALIZATION",
-  );
-
-  const preApprovedApplications = applications.filter(
-    (application) =>
-      application.status === "PREAPPROVED" ||
-      application.status === "COMPLEMENTARY_DOCUMENTATION" ||
-      application.status === "FORMALIZATION",
-  );
-
-  const groupedApplications =
-    dashboardGroup === "FOLLOW_UP"
-      ? followUpApplications
-      : preApprovedApplications;
-
-  const visibleApplications =
-    dashboardGroup !== "FOLLOW_UP"
-      ? groupedApplications
-      : groupedApplications.filter((application) => {
-          if (followUpFilter === "COMPLETED") {
-            return hasCompletedOnboarding(application);
-          }
-
-          if (followUpFilter === "IN_PROGRESS") {
-            return !hasCompletedOnboarding(application);
-          }
-
-          return true;
-        });
-
-  const completedOnboardingCount = followUpApplications.filter(
-    hasCompletedOnboarding,
-  ).length;
 
   if (user?.role === "ASESOR_PRESTAMOS") {
     return <LoanAdvisorDashboard />;
@@ -1118,9 +674,9 @@ export default function DashboardPage() {
     return (
       <BackofficeLayout
         title="Tablero"
-        description="Seguimiento de solicitudes de préstamo."
+        description="Gestión de Clientes"
       >
-        <div className="rounded-2xl bg-white p-8">
+        <div className="rounded-2xl border border-admin-border bg-white p-8">
           <p className="text-sm text-admin-text-soft">
             No se encontraron solicitudes.
           </p>
@@ -1129,176 +685,187 @@ export default function DashboardPage() {
     );
   }
 
+  const followUpApplications = applications.filter(
+    (application) =>
+      getWorkStage(application) === "FOLLOW_UP",
+  );
+
+  const readyReviewApplications = applications.filter(
+    (application) =>
+      getWorkStage(application) === "READY_REVIEW",
+  );
+
+  const evaluationApplications = applications.filter(
+    (application) =>
+      getWorkStage(application) === "EVALUATION",
+  );
+
+  const activeApplications =
+    activeStage === "FOLLOW_UP"
+      ? followUpApplications
+      : activeStage === "READY_REVIEW"
+        ? readyReviewApplications
+        : evaluationApplications;
+
+  const firstName =
+    user?.firstName?.trim() || "Jhoselinne";
+
   return (
     <BackofficeLayout
       title="Tablero"
-      description="Revisa los nuevos ingresos y continúa la gestión de cada cliente."
+      description="Gestión de Clientes"
     >
-      <div className="mx-auto max-w-[1500px] space-y-5">
-        <section className="space-y-4">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xl font-bold tracking-[-0.02em] text-admin-text">
-                  Solicitudes
-                </h2>
+      <div className="mx-auto max-w-[1440px]">
+        <section>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-[760px]">
+              <div className="flex items-center gap-3">
+                <span className="h-5 w-1 rounded-full bg-primary" />
 
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-surface-blue px-2.5 py-1 text-[10px] font-bold text-primary-dark">
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-30" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-                  </span>
-                  {dashboardGroup === "FOLLOW_UP"
-                    ? "En seguimiento"
-                    : "Pre aprobados"}
-                </span>
+                <p className="text-xs font-semibold text-primary-dark">
+                  Gestión de Clientes
+                </p>
               </div>
 
-              <p className="mt-1 text-sm text-admin-text-soft">
-                {dashboardGroup === "FOLLOW_UP"
-                  ? "Identifica rápidamente quién sigue en proceso y quién ya completó los 6 pasos."
-                  : "Gestiona las solicitudes que ya pasaron a pre aprobación."}
+              <h1 className="mt-3 text-2xl font-bold tracking-[-0.03em] text-admin-text sm:text-[28px]">
+                Buenos días, {firstName}
+              </h1>
+
+              <p className="mt-2 text-sm leading-6 text-admin-text-soft">
+                Tienes{" "}
+                <span className="font-semibold text-admin-text">
+                  {followUpApplications.length} clientes en seguimiento
+                </span>{" "}
+                y{" "}
+                <span className="font-semibold text-admin-text">
+                  {readyReviewApplications.length} listos para revisar
+                </span>
+                .
               </p>
             </div>
 
-            <div className="rounded-2xl bg-[#03AEFE] px-5 py-3 text-white">
-              <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-white/70">
-                {dashboardGroup === "FOLLOW_UP"
-                  ? "Seguimiento"
-                  : "Pre aprobados"}
-              </p>
-              <p className="mt-0.5 text-sm font-bold">
-                {visibleApplications.length} solicitudes
-              </p>
-            </div>
           </div>
 
-          <div className="flex flex-col gap-4 rounded-2xl border border-admin-border bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setDashboardGroup("FOLLOW_UP");
-                  setFollowUpFilter("IN_PROGRESS");
-                }}
-                className={[
-                  "inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all duration-200",
-                  dashboardGroup === "FOLLOW_UP" &&
-                  followUpFilter === "IN_PROGRESS"
-                    ? "border-[#03AEFE] bg-[#03AEFE] text-white shadow-sm"
-                    : "border-admin-border bg-white text-admin-text-soft hover:border-[#03AEFE]/40 hover:bg-[#EAF7FF] hover:text-primary-dark",
-                ].join(" ")}
-              >
-                En seguimiento
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setDashboardGroup("FOLLOW_UP");
-                  setFollowUpFilter("COMPLETED");
-                }}
-                className={[
-                  "inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all duration-200",
-                  dashboardGroup === "FOLLOW_UP" &&
-                  followUpFilter === "COMPLETED"
-                    ? "border-[#03AEFE] bg-[#03AEFE] text-white shadow-sm"
-                    : "border-admin-border bg-white text-admin-text-soft hover:border-[#03AEFE]/40 hover:bg-[#EAF7FF] hover:text-primary-dark",
-                ].join(" ")}
-              >
-                Onboarding completado
-
-                <span
-                  className={[
-                    "inline-flex h-6 min-w-6 items-center justify-center rounded-lg px-1.5 text-[11px] font-bold transition-colors",
-                    dashboardGroup === "FOLLOW_UP" &&
-                    followUpFilter === "COMPLETED"
-                      ? "bg-white/20 text-white"
-                      : "bg-surface-blue text-primary-dark",
-                  ].join(" ")}
-                >
-                  {completedOnboardingCount}
-                </span>
-              </button>
-
-              <button
-                type="button"
+          <div className="mt-7 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="inline-flex flex-wrap gap-1 rounded-2xl border border-admin-border bg-white p-1.5">
+              <WorkSummaryButton
+                active={activeStage === "FOLLOW_UP"}
+                count={followUpApplications.length}
+                label="Seguimiento"
                 onClick={() =>
-                  setDashboardGroup("PRE_APPROVED")
+                  setActiveStage("FOLLOW_UP")
                 }
-                className={[
-                  "inline-flex h-11 items-center gap-2 rounded-xl border px-4 text-sm font-bold transition-all duration-200",
-                  dashboardGroup === "PRE_APPROVED"
-                    ? "border-black bg-black text-white shadow-sm"
-                    : "border-admin-border bg-white text-admin-text-soft hover:border-admin-text/20 hover:bg-admin-surface-soft hover:text-admin-text",
-                ].join(" ")}
-              >
-                Proceso de evaluación
-              </button>
+              />
+
+              <WorkSummaryButton
+                active={activeStage === "READY_REVIEW"}
+                count={readyReviewApplications.length}
+                label="Por revisar"
+                onClick={() =>
+                  setActiveStage("READY_REVIEW")
+                }
+              />
+
+              <WorkSummaryButton
+                active={activeStage === "EVALUATION"}
+                count={evaluationApplications.length}
+                label="En evaluación"
+                emphasis
+                onClick={() =>
+                  setActiveStage("EVALUATION")
+                }
+              />
             </div>
 
-            <div className="inline-flex w-fit rounded-xl bg-admin-surface-soft p-1">
-              <button
-                type="button"
-                onClick={() => setDashboardView("LIST")}
-                className={[
-                  "inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-xs font-bold transition-all duration-200",
-                  dashboardView === "LIST"
-                    ? "bg-white text-admin-text shadow-sm"
-                    : "text-admin-text-soft hover:text-admin-text",
-                ].join(" ")}
-              >
-                <LayoutList aria-hidden="true" size={15} />
-                Lista
-              </button>
 
-              <button
-                type="button"
-                onClick={() => setDashboardView("FLOW")}
-                className={[
-                  "inline-flex h-9 items-center gap-2 rounded-lg px-3.5 text-xs font-bold transition-all duration-200",
-                  dashboardView === "FLOW"
-                    ? "bg-white text-admin-text shadow-sm"
-                    : "text-admin-text-soft hover:text-admin-text",
-                ].join(" ")}
-              >
-                <Columns3 aria-hidden="true" size={15} />
-                Flujo
-              </button>
-            </div>
           </div>
         </section>
 
+        <div className="my-6 h-px bg-admin-border" />
 
-        {dashboardView === "FLOW" ? (
-          <ApplicationsFlowBoard
-            applications={groupedApplications}
-            group={dashboardGroup}
-            followUpFilter={followUpFilter}
-          />
-        ) : (
-          <section className="space-y-3">
-            {visibleApplications.length > 0 ? (
-              visibleApplications.map((application) => (
-                <ApplicationAccordionCard
-                  key={application.id}
-                  application={application}
-                  open={openApplicationId === application.id}
-                  onToggle={() =>
-                    toggleApplication(application.id)
-                  }
-                />
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-admin-border bg-white p-8 text-center">
-                <p className="text-sm font-semibold text-admin-text">
-                  No hay solicitudes en esta vista.
-                </p>
+        {dashboardView === "LIST" ? (
+          <section>
+            <div className="mb-4 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-base font-bold text-admin-text">
+                  {activeStage === "FOLLOW_UP"
+                    ? "Clientes en seguimiento"
+                    : activeStage === "READY_REVIEW"
+                      ? "Listos para tu revisión"
+                      : "En proceso de evaluación"}
+                </h2>
+
                 <p className="mt-1 text-xs text-admin-text-soft">
-                  Cambia el filtro para revisar otras solicitudes.
+                  {activeStage === "FOLLOW_UP"
+                    ? "Clientes que todavía están completando su solicitud."
+                    : activeStage === "READY_REVIEW"
+                      ? "Clientes que terminaron el onboarding y necesitan tu validación."
+                      : "Solicitudes que ya continuaron a la siguiente etapa."}
+                </p>
+              </div>
+
+              <span className="shrink-0 text-xs font-semibold text-admin-text-muted">
+                {activeApplications.length}{" "}
+                {activeApplications.length === 1
+                  ? "cliente"
+                  : "clientes"}
+              </span>
+            </div>
+
+            {activeApplications.length > 0 ? (
+              <div className="space-y-3">
+                {activeApplications.map((application) => (
+                  <ClientApplicationCard
+                    key={application.id}
+                    application={application}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-admin-border bg-white px-6 py-12 text-center">
+                <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-admin-surface-soft text-admin-text-muted">
+                  <Check
+                    aria-hidden="true"
+                    size={18}
+                    strokeWidth={1.8}
+                  />
+                </div>
+
+                <p className="mt-3 text-sm font-semibold text-admin-text">
+                  No tienes clientes aquí
+                </p>
+
+                <p className="mt-1 text-xs text-admin-text-soft">
+                  Cuando una solicitud llegue a esta etapa,
+                  aparecerá automáticamente.
                 </p>
               </div>
             )}
+          </section>
+        ) : (
+          <section className="overflow-x-auto pb-3">
+            <div className="flex min-w-[980px] gap-4">
+              <FlowColumn
+                title="Esperando al cliente"
+                description="Continúan completando su solicitud."
+                applications={followUpApplications}
+                stage="FOLLOW_UP"
+              />
+
+              <FlowColumn
+                title="Listos para revisar"
+                description="Terminaron los 6 pasos y necesitan tu validación."
+                applications={readyReviewApplications}
+                stage="READY_REVIEW"
+              />
+
+              <FlowColumn
+                title="En evaluación"
+                description="Ya continuaron a la siguiente etapa."
+                applications={evaluationApplications}
+                stage="EVALUATION"
+              />
+            </div>
           </section>
         )}
       </div>
@@ -1306,7 +873,7 @@ export default function DashboardPage() {
       <NotificationSummaryModal
         open={loginSummaryOpen}
         onClose={() => setLoginSummaryOpen(false)}
-        firstName={user?.firstName ?? "Jhoseline"}
+        firstName={firstName}
       />
     </BackofficeLayout>
   );

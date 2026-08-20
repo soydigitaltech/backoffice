@@ -270,6 +270,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Juan Carlos Pérez Rojas",
         version: 1,
         observation: null,
+        fileUrl: "/AUTORIZACIOEXPRESA.pdf",
+        mimeType: "application/pdf",
       },
       {
         id: "doc-002",
@@ -280,6 +282,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Juan Carlos Pérez Rojas",
         version: 1,
         observation: null,
+        fileUrl: "/front.png",
+        mimeType: "image/png",
       },
       {
         id: "doc-003",
@@ -290,6 +294,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Juan Carlos Pérez Rojas",
         version: 1,
         observation: null,
+        fileUrl: "/back.png",
+        mimeType: "image/png",
       },
       {
         id: "doc-004",
@@ -300,6 +306,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Juan Carlos Pérez Rojas",
         version: 1,
         observation: null,
+        fileUrl: "/selfie.png",
+        mimeType: "image/png",
       },
     ],
 
@@ -578,6 +586,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Mariela Condori Quispe",
         version: 1,
         observation: null,
+        fileUrl: "/AUTORIZACIOEXPRESA.pdf",
+        mimeType: "application/pdf",
       },
       {
         id: "doc-006",
@@ -588,6 +598,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Mariela Condori Quispe",
         version: 1,
         observation: null,
+        fileUrl: "/front.png",
+        mimeType: "image/png",
       },
       {
         id: "doc-007",
@@ -598,6 +610,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Mariela Condori Quispe",
         version: 1,
         observation: null,
+        fileUrl: "/back.png",
+        mimeType: "image/png",
       },
       {
         id: "doc-008",
@@ -608,6 +622,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Mariela Condori Quispe",
         version: 1,
         observation: null,
+        fileUrl: "/selfie.png",
+        mimeType: "image/png",
       },
     ],
 
@@ -892,6 +908,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Diego Fernández López",
         version: 1,
         observation: null,
+        fileUrl: "/AUTORIZACIOEXPRESA.pdf",
+        mimeType: "application/pdf",
       },
       {
         id: "doc-010",
@@ -902,6 +920,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Diego Fernández López",
         version: 1,
         observation: null,
+        fileUrl: "/front.png",
+        mimeType: "image/png",
       },
       {
         id: "doc-011",
@@ -912,6 +932,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Diego Fernández López",
         version: 1,
         observation: null,
+        fileUrl: "/back.png",
+        mimeType: "image/png",
       },
       {
         id: "doc-012",
@@ -922,6 +944,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Diego Fernández López",
         version: 1,
         observation: null,
+        fileUrl: "/selfie.png",
+        mimeType: "image/png",
       },
     ],
 
@@ -1201,6 +1225,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Paola Vargas Salinas",
         version: 1,
         observation: null,
+        fileUrl: "/AUTORIZACIOEXPRESA.pdf",
+        mimeType: "application/pdf",
       },
       {
         id: "doc-014",
@@ -1211,6 +1237,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Paola Vargas Salinas",
         version: 1,
         observation: null,
+        fileUrl: "/front.png",
+        mimeType: "image/png",
       },
       {
         id: "doc-015",
@@ -1221,6 +1249,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Paola Vargas Salinas",
         version: 1,
         observation: null,
+        fileUrl: "/back.png",
+        mimeType: "image/png",
       },
       {
         id: "doc-016",
@@ -1231,6 +1261,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Paola Vargas Salinas",
         version: 1,
         observation: null,
+        fileUrl: "/selfie.png",
+        mimeType: "image/png",
       },
     ],
 
@@ -1502,11 +1534,13 @@ export const INITIAL_APPLICATIONS: Application[] = [
         id: "doc-017",
         type: "BIC_AUTHORIZATION",
         name: "Autorización BIC firmada",
-        status: "MISSING",
-        uploadedAt: null,
-        uploadedBy: null,
-        version: 0,
+        status: "UPLOADED",
+        uploadedAt: "2026-08-02T14:01:00-04:00",
+        uploadedBy: "Roberto Mamani Choque",
+        version: 1,
         observation: null,
+        fileUrl: "/AUTORIZACIOEXPRESA.pdf",
+        mimeType: "application/pdf",
       },
       {
         id: "doc-018",
@@ -1517,16 +1551,20 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Roberto Mamani Choque",
         version: 1,
         observation: null,
+        fileUrl: "/front.png",
+        mimeType: "image/png",
       },
       {
         id: "doc-019",
         type: "ID_BACK",
         name: "CI reverso",
-        status: "MISSING",
-        uploadedAt: null,
-        uploadedBy: null,
-        version: 0,
+        status: "UPLOADED",
+        uploadedAt: "2026-08-02T14:04:00-04:00",
+        uploadedBy: "Roberto Mamani Choque",
+        version: 1,
         observation: null,
+        fileUrl: "/back.png",
+        mimeType: "image/png",
       },
       {
         id: "doc-020",
@@ -1537,6 +1575,8 @@ export const INITIAL_APPLICATIONS: Application[] = [
         uploadedBy: "Roberto Mamani Choque",
         version: 1,
         observation: null,
+        fileUrl: "/selfie.png",
+        mimeType: "image/png",
       },
     ],
 

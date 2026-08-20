@@ -32,7 +32,7 @@ export default function BackofficeLayout({
             onOpenMenu={() => setMobileMenuOpen(true)}
           />
 
-          <main className="px-5 pb-8 pt-2 lg:px-8">{children}</main>
+          <main className="px-5 pb-10 pt-7 lg:px-8 lg:pt-9">{children}</main>
         </div>
       </div>
 

@@ -110,6 +110,8 @@ export type ApplicationDocument = {
   uploadedBy: string | null;
   version: number;
   observation: string | null;
+  fileUrl?: string | null;
+  mimeType?: string | null;
   reviewedAt?: string | null;
   reviewedBy?: string | null;
 };
